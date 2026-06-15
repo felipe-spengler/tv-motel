@@ -102,8 +102,8 @@ async function main() {
     {
       title: 'Cazé TV (Esportes)',
       category: 'MOVIES',
-      sourceType: 'M3U8_FAST',
-      externalId: 'https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8',
+      sourceType: 'YOUTUBE_LIVE',
+      externalId: 'UCuujRq9qQf-nZ-Kx13C-1gA',
       thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
       orderPriority: 7,
     },
