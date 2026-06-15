@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: supersecretpassword
       POSTGRES_DB: tvmotel
     ports:
-      - "5435:5432"
+      - "5435:5432" # Mapeamento local para evitar conflitos, mas internamente usa 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
@@ -18,10 +18,50 @@ services:
     image: redis:7-alpine
     container_name: tv-motel-redis
     ports:
-      - "6375:6379"
+      - "6375:6379" # Mapeamento local para evitar conflitos, mas internamente usa 6379
     volumes:
       - redis_data:/data
     restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tv-motel-api
+    restart: always
+    ports:
+      - "5050:5050"
+    environment:
+      DATABASE_URL: "postgresql://postgres:supersecretpassword@postgres:5432/tvmotel?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "yoursecretjwtkeygoesherechangethisinproduction"
+      PORT: 5050
+      HOST: 0.0.0.0
+    depends_on:
+      - postgres
+      - redis
+
+  app-front:
+    build:
+      context: .
+      dockerfile: apps/app-front/Dockerfile
+    container_name: tv-motel-app-front
+    restart: always
+    ports:
+      - "4040:4040"
+    depends_on:
+      - api
+
+  admin-panel:
+    build:
+      context: .
+      dockerfile: apps/admin-panel/Dockerfile
+    container_name: tv-motel-admin-panel
+    restart: always
+    ports:
+      - "3030:3030"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
