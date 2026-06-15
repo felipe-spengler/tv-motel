@@ -1,7 +1,7 @@
 📑 Especificação Técnica Principal (Master Spec)
 Projeto: Plataforma Agregadora de Entretenimento Híbrido
 
-Versão: 3.0 (Foco: Sistema de Códigos de Ativação de 6 Dígitos, Roteamento Interno no Coolify e Limite de Dispositivos)
+Versão: 4.0 (Foco: Busca XVideos Dinâmica, Abas de Conteúdo Separadas e Gateway Admin Fix)
 
 Domínio Principal: tv.motelinteligente.com
 
@@ -12,6 +12,7 @@ Como você utilizará o Coolify na VPS para gerenciar seus deploys, todas as por
 * Ele direciona todo o tráfego externo para o container do `gateway` (Nginx), exposto na porta 80.
 * O `gateway` faz o roteamento interno baseado em rotas:
   - tv.motelinteligente.com/api/*    -> Roteado para o container `api` (porta 5050)
+  - tv.motelinteligente.com/admin     -> Redirecionamento 301 para /admin/ (Corrige caminhos de build estáticos)
   - tv.motelinteligente.com/admin/*  -> Roteado para o container `admin-panel` (porta 3030)
   - tv.motelinteligente.com/*        -> Roteado para o container `app-front` (porta 4040)
 

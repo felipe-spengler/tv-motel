@@ -1,7 +1,7 @@
 📑 Especificação Técnica (Spec) — Frontend
 Projeto: Plataforma Agregadora de Entretenimento Híbrido
 
-Versão: 3.0 (Foco: Interface de Ativação por Código, Detecção de Dispositivos e Gestão Administrativa)
+Versão: 4.0 (Foco: Abas de Exibição Separadas, Busca Dinâmica XVideos e Player de Câmeras Seguras)
 
 Objetivo: Prover interfaces unificadas para o App de Streaming (porta 4040 interna) e o Painel Administrativo (porta 3030 interna), preparadas para compilação nativa de Smart TVs e dispositivos móveis via Capacitor.
 
@@ -17,8 +17,8 @@ Objetivo: Prover interfaces unificadas para o App de Streaming (porta 4040 inter
 
 3. Fluxo de Telas (App de Streaming /app-front)
 - Tela 1 (Ativação de Dispositivo, `/login`): Campo numérico centralizado de 6 dígitos. O sistema autodetecta o tipo de dispositivo através do `navigator.userAgent` (Celular, Smart TV, Fire Stick ou Computador) e envia ao backend.
-- Tela 2 (Dashboard Principal, `/`): Grade de canais. O cabeçalho exibe o nome do cliente associado ao código ativado.
-- Tela 3 (Player de Vídeo, `/player/:id`): Carrega a URL de streaming em tela cheia com botão de "Tentar Novamente (Atualizar Link)" para resolver quedas.
+- Tela 2 (Dashboard Principal, `/`): Possui um seletor superior de abas ("Canais & Filmes" e "Conteúdo Adulto 18+"). A aba Adulto conta com um campo de pesquisa para buscar termos e exibir vídeos carregados do XVideos em tempo real. O teclado é mapeado para navegar fluidamente entre os canais do banco e os cards de vídeo carregados dinamicamente.
+- Tela 3 (Player de Vídeo): Carrega a URL de streaming em tela cheia com botão de recuperação rápida. Se o canal for do tipo `IFRAME_CAM_AFFILIATE` (Webcam), em vez de abrir um iframe que seria bloqueado pelo navegador, o app exibe uma tela com um botão de ação para abrir a transmissão externa de forma segura em uma nova aba (`window.open`).
 
 4. Fluxo de Telas (Painel Admin /admin-panel)
 - Login (/login): Login clássico de e-mail e senha apenas para administradores do sistema.

@@ -1,9 +1,9 @@
 📑 Especificação Técnica (Spec) — Backend & Banco de Dados
 Projeto: Plataforma Agregadora de Entretenimento Híbrido
 
-Versão: 3.0 (Foco: Sistema de Ativação por Códigos e Gerenciador de Limites de Dispositivos)
+Versão: 4.0 (Foco: Busca Dinâmica XVideos, Segurança de Conexão e Ajustes do Gateway Nginx)
 
-Objetivo: Prover APIs para validação de códigos de ativação de 6 dígitos para os usuários finais, controle de sessões e dispositivos simultâneos, endpoints CRUD para o painel admin gerenciar os acessos, e caching no Redis.
+Objetivo: Prover APIs para validação de códigos de ativação de 6 dígitos para os usuários finais, controle de sessões e dispositivos simultâneos, endpoints CRUD para o painel admin gerenciar os acessos, busca e raspagem em tempo real da rede do XVideos, e caching no Redis.
 
 1. Arquitetura e Tecnologias
 - Runtime: Node.js (TypeScript) com Fastify (executando na porta 5050 interna).
@@ -16,10 +16,12 @@ Objetivo: Prover APIs para validação de códigos de ativação de 6 dígitos p
 - user_sessions: Sessões ativas de dispositivos ou de administradores. Contém deviceType (WEB_MOBILE, WEB_DESKTOP, ANDROID_TV, FIRE_STICK), ipAddress, lastActivity, e chaves estrangeiras opcionais userId (login admin) ou activationCodeId (login de dispositivo do cliente).
 
 3. Lógica de Scraping & Estratégia de Cache (Redis)
-- Quando o frontend chama GET /v1/catalog/stream/:id com um canal do tipo SCRAPER_XVIDEOS:
+- Quando o frontend chama GET /v1/catalog/stream/:id (ou /xvideos/stream) com fontes SCRAPER_XVIDEOS:
   1. O backend busca no Redis pela chave "stream:video:<id>".
   2. Hit (Encontrou no cache): Retorna a URL armazenada imediatamente (< 50ms).
   3. Miss (Não encontrou): Executa o script do Scraper (via axios + cheerio/regex) para extrair o link direto, salva no Redis com TTL de 2 horas e responde ao frontend.
+  4. Falha / Bloqueio: Caso o parsing do HTML retorne erro (404/bloqueio), o backend intercepta o erro e retorna uma URL HLS estável de demonstração (fallback) para manter o player da TV funcionando.
+- Listagem Dinâmica: O backend possui rotas de busca que requisitam páginas do XVideos em tempo real, extraindo miniaturas, títulos e caminhos de reprodução para navegação instantânea pelo usuário do front.
 
 4. Endpoints da API (/v1)
 - Autenticação e Ativação (/v1/auth/*):
@@ -27,8 +29,10 @@ Objetivo: Prover APIs para validação de códigos de ativação de 6 dígitos p
   - POST /refresh: Valida e renova tokens expirados tanto de administradores quanto de dispositivos ativos.
   - POST /logout: Remove a sessão do dispositivo ou admin.
 - Catálogo e Streaming (/v1/catalog/*):
-  - GET /grid: Retorna a grade estruturada de canais ativos.
-  - GET /stream/:id: Resolve links de streaming temporários.
+  - GET /grid: Retorna a grade estruturada de canais ativos do banco.
+  - GET /stream/:id: Resolve links de streaming temporários do banco.
+  - GET /xvideos/search: Pesquisa vídeos na rede do XVideos com paginação.
+  - GET /xvideos/stream: Resolve streams de XVideos que não estão salvos no banco.
 - Gestão Administrativa (/v1/admin/*):
   - GET /metrics: Estatísticas de total de códigos, sessões ativas e lista detalhada dos dispositivos online.
   - GET, POST, PUT, DELETE /codes: CRUD de códigos de ativação de clientes.
