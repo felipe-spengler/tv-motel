@@ -9,7 +9,7 @@ import { adminRoutes } from './routes/admin.js';
 dotenv.config();
 
 const server = Fastify({
-  logger: {
+  logger: process.env.NODE_ENV === 'development' ? {
     transport: {
       target: 'pino-pretty',
       options: {
@@ -17,7 +17,7 @@ const server = Fastify({
         ignore: 'pid,hostname',
       },
     },
-  },
+  } : true,
 });
 
 const PORT = Number(process.env.PORT) || 5050;
