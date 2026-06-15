@@ -69,8 +69,8 @@ services:
       dockerfile: apps/gateway/Dockerfile
     container_name: tv-motel-gateway
     restart: always
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - app-front
       - admin-panel
