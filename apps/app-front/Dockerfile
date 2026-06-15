@@ -1,12 +1,14 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@11.7.0
+RUN npm install -g pnpm@9
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/app-front/package.json ./apps/app-front/
 COPY apps/admin-panel/package.json ./apps/admin-panel/
 RUN pnpm install --filter app-front... --frozen-lockfile
 COPY apps/app-front ./apps/app-front
+ARG VITE_API_URL=/api/v1
+ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm --filter app-front build
 
 FROM nginx:stable-alpine

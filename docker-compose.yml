@@ -63,6 +63,19 @@ services:
     depends_on:
       - api
 
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    container_name: tv-motel-gateway
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - app-front
+      - admin-panel
+      - api
+
 volumes:
   postgres_data:
   redis_data:

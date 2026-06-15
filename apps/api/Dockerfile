@@ -1,6 +1,6 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@11.7.0
+RUN npm install -g pnpm@9
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/app-front/package.json ./apps/app-front/
@@ -11,7 +11,7 @@ RUN pnpm --filter api build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-RUN npm install -g pnpm@11.7.0
+RUN npm install -g pnpm@9
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/app-front/package.json ./apps/app-front/
