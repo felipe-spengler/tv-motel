@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, UserInfo } from '../utils/api.js';
 import Player from '../components/Player.js';
-import { Tv, LogOut, ShieldAlert, MonitorPlay, Radio, Heart, Flame } from 'lucide-react';
+import { Tv, LogOut, ShieldAlert, MonitorPlay, Radio, Heart, Flame, Search } from 'lucide-react';
 
 interface Channel {
   id: string;
@@ -11,6 +11,7 @@ interface Channel {
   sourceType: string;
   externalId: string;
   thumbnailUrl: string;
+  isDynamic?: boolean;
 }
 
 export default function Dashboard() {
@@ -21,6 +22,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // Abas e Busca XVideos
+  const [activeTab, setActiveTab] = useState<'normal' | 'adult'>('normal');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dynamicVideos, setDynamicVideos] = useState<Channel[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+
   // Controle do Player
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
 
@@ -38,6 +46,14 @@ export default function Dashboard() {
     fetchGrid();
   }, [navigate]);
 
+  // Carregar lista de XVideos populares por padrão na aba adulta
+  useEffect(() => {
+    if (activeTab === 'adult' && dynamicVideos.length === 0) {
+      fetchXVideos('');
+    }
+    setFocusedIndex(-1); // Reseta o foco ao mudar de aba
+  }, [activeTab]);
+
   const fetchGrid = async () => {
     setLoading(true);
     setError('');
@@ -52,6 +68,32 @@ export default function Dashboard() {
     }
   };
 
+  const fetchXVideos = async (query: string) => {
+    setSearchLoading(true);
+    setSearchError('');
+    try {
+      const data = await apiClient.request(`/catalog/xvideos/search?query=${encodeURIComponent(query)}`);
+      const list = (data.videos || []).map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        category: 'ADULT_CONTENT' as const,
+        sourceType: 'SCRAPER_XVIDEOS',
+        externalId: v.id,
+        thumbnailUrl: v.thumbnailUrl,
+        isDynamic: true
+      }));
+      setDynamicVideos(list);
+    } catch (err: any) {
+      setSearchError(err.message || 'Erro ao buscar no XVideos.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    fetchXVideos(searchQuery);
+  };
+
   const handleLogout = async () => {
     const refreshToken = apiClient.getRefreshToken();
     if (refreshToken) {
@@ -64,32 +106,47 @@ export default function Dashboard() {
     navigate('/login');
   };
 
+  // Compilar itens visíveis na aba atual para o controle de teclado
+  const isAdultCategory = (cat: string) => cat === 'ADULT_CONTENT' || cat === 'LIVE_CAMS';
+
+  const visibleItems = [
+    ...rawChannels.filter(c => {
+      const isAdult = isAdultCategory(c.category);
+      return activeTab === 'adult' ? isAdult : !isAdult;
+    }),
+    ...(activeTab === 'adult' ? dynamicVideos : [])
+  ];
+
   // Escuta teclas de setas do controle remoto / teclado
   useEffect(() => {
-    if (loading || rawChannels.length === 0 || activeChannel) return;
+    if (loading || visibleItems.length === 0 || activeChannel) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) {
+        // Se estiver digitando na busca, não bloqueia o teclado para letras, apenas setas verticais
+        const isTyping = document.activeElement?.tagName === 'INPUT';
+        if (isTyping && ['Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          return;
+        }
         e.preventDefault();
       }
 
       if (e.key === 'ArrowRight') {
-        setFocusedIndex(prev => (prev + 1) % rawChannels.length);
+        setFocusedIndex(prev => (prev + 1) % visibleItems.length);
       } else if (e.key === 'ArrowLeft') {
-        setFocusedIndex(prev => (prev - 1 + rawChannels.length) % rawChannels.length);
+        setFocusedIndex(prev => (prev - 1 + visibleItems.length) % visibleItems.length);
       } else if (e.key === 'ArrowDown') {
-        // Pular 4 itens (simulando linha de grid)
-        setFocusedIndex(prev => (prev + 4) % rawChannels.length);
+        setFocusedIndex(prev => (prev + 4) % visibleItems.length);
       } else if (e.key === 'ArrowUp') {
-        setFocusedIndex(prev => (prev - 4 + rawChannels.length) % rawChannels.length);
+        setFocusedIndex(prev => (prev - 4 + visibleItems.length) % visibleItems.length);
       } else if (e.key === 'Enter' && focusedIndex >= 0) {
-        setActiveChannel(rawChannels[focusedIndex]);
+        setActiveChannel(visibleItems[focusedIndex]);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loading, rawChannels, focusedIndex, activeChannel]);
+  }, [loading, visibleItems, focusedIndex, activeChannel]);
 
   // Rolar para o elemento focado para manter a visibilidade na TV
   useEffect(() => {
@@ -123,6 +180,14 @@ export default function Dashboard() {
     }
   };
 
+  const filteredCategoryKeys = Object.keys(categories).filter(key => {
+    if (activeTab === 'adult') {
+      return isAdultCategory(key);
+    } else {
+      return !isAdultCategory(key);
+    }
+  });
+
   return (
     <div className="min-h-screen bg-background text-gray-100 flex flex-col pb-16 md:pb-0">
       
@@ -136,6 +201,34 @@ export default function Dashboard() {
             TV Motel
           </span>
         </div>
+
+        {/* Tab Switcher */}
+        {!loading && !error && (
+          <div className="bg-stone-900/60 p-1 rounded-xl border border-stone-850 flex gap-1">
+            <button
+              onClick={() => setActiveTab('normal')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-xs transition-all focus:outline-none ${
+                activeTab === 'normal'
+                  ? 'bg-primary text-white shadow shadow-primary/25'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              <Tv className="w-4 h-4" />
+              <span>Canais & Filmes</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('adult')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-xs transition-all focus:outline-none ${
+                activeTab === 'adult'
+                  ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
+                  : 'text-stone-400 hover:text-rose-450'
+              }`}
+            >
+              <Flame className="w-4 h-4" />
+              <span>Conteúdo Adulto 18+</span>
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex flex-col text-right">
@@ -177,14 +270,31 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!loading && !error && rawChannels.length === 0 && (
-          <div className="text-center py-20">
-            <Tv className="w-16 h-16 text-stone-750 mx-auto mb-4" />
-            <p className="text-stone-400 text-lg">Nenhum canal ativo cadastrado no catálogo.</p>
+        {/* XVideos Search Bar for Adult Tab */}
+        {!loading && !error && activeTab === 'adult' && (
+          <div className="mb-8 max-w-lg mx-auto bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
+            <Search className="w-5 h-5 text-stone-500 ml-2" />
+            <input
+              type="text"
+              placeholder="Buscar no XVideos (ex: massagem)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearch();
+              }}
+              className="bg-transparent border-0 flex-1 px-2 py-2 text-stone-100 placeholder-stone-600 focus:outline-none text-sm"
+            />
+            <button
+              onClick={handleSearch}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-all focus:outline-none"
+            >
+              Buscar
+            </button>
           </div>
         )}
 
-        {!loading && !error && Object.keys(categories).map(categoryKey => (
+        {/* Categories Row */}
+        {!loading && !error && filteredCategoryKeys.map(categoryKey => (
           <section key={categoryKey} className="mb-10">
             <div className="flex items-center gap-2 mb-4 border-b border-stone-900 pb-2">
               {getCategoryIcon(categoryKey)}
@@ -195,8 +305,7 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {categories[categoryKey].map(channel => {
-                // Descobrir o índice absoluto na lista para acessibilidade via teclado
-                const absoluteIndex = rawChannels.findIndex(c => c.id === channel.id);
+                const absoluteIndex = visibleItems.findIndex(c => c.id === channel.id);
                 const isFocused = absoluteIndex === focusedIndex;
 
                 return (
@@ -208,7 +317,6 @@ export default function Dashboard() {
                       isFocused ? 'tv-active-focus' : ''
                     }`}
                   >
-                    {/* Imagem/Card Preview */}
                     <div className="relative aspect-video bg-stone-950 overflow-hidden">
                       <img
                         src={channel.thumbnailUrl}
@@ -221,13 +329,11 @@ export default function Dashboard() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90" />
                       
-                      {/* Categoria Badge */}
                       <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-lg border border-white/10 uppercase tracking-wider text-stone-300">
                         {channel.sourceType.replace('_', ' ')}
                       </span>
                     </div>
 
-                    {/* Título */}
                     <div className="p-4">
                       <h3 className="font-bold text-stone-200 group-hover:text-primary transition-colors line-clamp-1 text-sm md:text-base">
                         {channel.title}
@@ -239,6 +345,76 @@ export default function Dashboard() {
             </div>
           </section>
         ))}
+
+        {/* Dynamic XVideos section */}
+        {!loading && !error && activeTab === 'adult' && (
+          <section className="mb-10">
+            <div className="flex items-center gap-2 mb-4 border-b border-stone-900 pb-2">
+              <Flame className="w-5 h-5 text-rose-500" />
+              <h2 className="text-xl font-bold tracking-wide text-stone-200">
+                {searchQuery ? `Vídeos sobre "${searchQuery}" no XVideos` : 'Vídeos em Destaque do XVideos'}
+              </h2>
+            </div>
+
+            {searchLoading && (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <div className="w-8 h-8 border-4 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                <p className="text-stone-500 text-xs">Raspando vídeos da rede do XVideos...</p>
+              </div>
+            )}
+
+            {searchError && !searchLoading && (
+              <p className="text-red-400 text-sm text-center py-6">{searchError}</p>
+            )}
+
+            {!searchLoading && !searchError && dynamicVideos.length === 0 && (
+              <p className="text-stone-500 text-sm text-center py-6">Nenhum vídeo encontrado no XVideos para esta busca.</p>
+            )}
+
+            {!searchLoading && !searchError && dynamicVideos.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {dynamicVideos.map(video => {
+                  const absoluteIndex = visibleItems.findIndex(c => c.id === video.id);
+                  const isFocused = absoluteIndex === focusedIndex;
+
+                  return (
+                    <div
+                      key={video.id}
+                      ref={el => cardRefs.current[absoluteIndex] = el}
+                      onClick={() => setActiveChannel(video)}
+                      className={`group cursor-pointer bg-stone-900 border border-stone-850 rounded-2xl overflow-hidden hover:scale-102 transition-all duration-200 ${
+                        isFocused ? 'tv-active-focus' : ''
+                      }`}
+                    >
+                      <div className="relative aspect-video bg-stone-950 overflow-hidden">
+                        <img
+                          src={video.thumbnailUrl}
+                          alt={video.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1598128558393-70ff21433be0?q=80&w=400';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90" />
+                        
+                        <span className="absolute top-3 left-3 bg-rose-650 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-rose-500/20 uppercase tracking-wider">
+                          XVideos
+                        </span>
+                      </div>
+
+                      <div className="p-4">
+                        <h3 className="font-bold text-stone-200 group-hover:text-rose-500 transition-colors line-clamp-1 text-sm md:text-base">
+                          {video.title}
+                        </h3>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       {/* Player Modal */}
@@ -248,7 +424,12 @@ export default function Dashboard() {
           sourceType={activeChannel.sourceType}
           channelId={activeChannel.id}
           onBack={() => setActiveChannel(null)}
-          resolveStreamUrl={() => apiClient.request(`/catalog/stream/${activeChannel.id}`)}
+          resolveStreamUrl={async () => {
+            if (activeChannel.isDynamic) {
+              return apiClient.request(`/catalog/xvideos/stream?externalId=${encodeURIComponent(activeChannel.id)}`);
+            }
+            return apiClient.request(`/catalog/stream/${activeChannel.id}`);
+          }}
         />
       )}
     </div>

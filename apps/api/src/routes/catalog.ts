@@ -118,4 +118,40 @@ export async function catalogRoutes(server: FastifyInstance) {
       return reply.code(500).send({ error: 'Erro ao resolver fluxo de vídeo.' });
     }
   });
+
+  // GET /v1/catalog/xvideos/search
+  server.get('/xvideos/search', async (request, reply) => {
+    const { query, page } = request.query as { query?: string; page?: string };
+    const pageNum = page ? parseInt(page, 10) : 1;
+    
+    try {
+      const videos = await ScraperService.scrapeXVideosList(query, pageNum);
+      return reply.send({ videos });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao buscar vídeos do XVideos' });
+    }
+  });
+
+  // GET /v1/catalog/xvideos/stream
+  server.get('/xvideos/stream', async (request, reply) => {
+    const { externalId } = request.query as { externalId: string };
+    if (!externalId) {
+      return reply.code(400).send({ error: 'O parâmetro externalId é obrigatório.' });
+    }
+
+    try {
+      const resolvedUrl = await ScraperService.scrapeXVideos(externalId);
+      return reply.send({
+        url: resolvedUrl,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.xvideos.com/'
+        }
+      });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao resolver vídeo do XVideos' });
+    }
+  });
 }

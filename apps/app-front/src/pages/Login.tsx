@@ -82,7 +82,12 @@ export default function Login() {
       price: 120,
       pricePerDevice: 24.0,
       popular: false,
-      features: ['5 dispositivos simultâneos', 'Canais FAST e Notícias', 'Grade Adulta e Scrapers', 'Suporte Smart TV / Celular']
+      features: [
+        '5 dispositivos simultâneos',
+        'Canais FAST e Notícias',
+        'Grade Adulta e Scrapers',
+        'Suporte Smart TV / Celular'
+      ]
     },
     {
       name: 'Prata (10 Telas)',
@@ -90,7 +95,12 @@ export default function Login() {
       price: 150,
       pricePerDevice: 15.0,
       popular: true, // Recomendado / Melhor custo-benefício inicial
-      features: ['10 dispositivos simultâneos', 'Economia de 37% por tela', 'Painel de controle de conexões', 'Grade de canais premium']
+      features: [
+        '10 dispositivos simultâneos',
+        'Economia de 37% por tela',
+        'Painel de controle de conexões',
+        'Canais FAST, Notícias e Adultos'
+      ]
     },
     {
       name: 'Ouro (20 Telas)',
@@ -98,7 +108,13 @@ export default function Login() {
       price: 250,
       pricePerDevice: 12.5,
       popular: false,
-      features: ['20 dispositivos simultâneos', 'Economia de 47% por tela', 'Suporte Técnico Prioritário', 'Liberação imediata']
+      features: [
+        '20 dispositivos simultâneos',
+        'Economia de 47% por tela',
+        'Painel de controle de conexões',
+        'Suporte Técnico Prioritário',
+        'Liberação imediata de acessos'
+      ]
     },
     {
       name: 'Diamond (35 Telas)',
@@ -106,7 +122,13 @@ export default function Login() {
       price: 350,
       pricePerDevice: 10.0,
       popular: false,
-      features: ['35 dispositivos simultâneos', 'Apenas R$ 10 por dispositivo!', 'Ideal para grandes motéis', 'Máxima performance de cache']
+      features: [
+        '35 dispositivos simultâneos',
+        'Apenas R$ 10 por dispositivo!',
+        'Painel de controle de conexões',
+        'Suporte Técnico Prioritário',
+        'Servidor VIP (Máxima performance)'
+      ]
     }
   ];
 

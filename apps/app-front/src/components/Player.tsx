@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Flame } from 'lucide-react';
 
 interface PlayerProps {
   title: string;
@@ -135,12 +135,22 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
                 allowFullScreen
               />
             ) : sourceType === 'IFRAME_CAM_AFFILIATE' ? (
-              <iframe
-                src={streamUrl}
-                title={title}
-                className="w-full h-full border-0 bg-stone-950"
-                allowFullScreen
-              />
+              <div className="flex flex-col items-center gap-6 text-center p-8 max-w-lg bg-stone-900/90 border border-stone-800 rounded-3xl backdrop-blur-xl shadow-2xl">
+                <div className="w-16 h-16 bg-rose-600/10 rounded-2xl flex items-center justify-center border border-rose-500/20 animate-pulse">
+                  <Flame className="w-8 h-8 text-rose-500" />
+                </div>
+                <h3 className="text-xl font-bold text-stone-100">Transmissão Externa Segura</h3>
+                <p className="text-stone-400 text-sm leading-relaxed">
+                  Para garantir a máxima performance de vídeo e segurança, esta webcam ao vivo será aberta em uma nova janela.
+                </p>
+                <button
+                  onClick={() => window.open(streamUrl, '_blank')}
+                  className="w-full bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 focus:outline-none"
+                >
+                  <Flame className="w-5 h-5" />
+                  <span>Abrir Webcam em Nova Janela</span>
+                </button>
+              </div>
             ) : (
               <div data-vjs-player className="w-full h-full flex items-center justify-center">
                 <video
