@@ -317,7 +317,7 @@ export async function adminRoutes(server: FastifyInstance) {
     }
   });
 
-  // POST /v1/admin/codes/:id/clear - Limpar dispositivos conectados
+  // POST /v1/admin/codes/:id/clear - Limpar todos os dispositivos conectados daquele código
   server.post('/codes/:id/clear', async (request, reply) => {
     const { id } = request.params as { id: string };
 
@@ -329,6 +329,21 @@ export async function adminRoutes(server: FastifyInstance) {
     } catch (err: any) {
       server.log.error(err);
       return reply.code(500).send({ error: 'Erro ao desconectar dispositivos vinculados.' });
+    }
+  });
+
+  // DELETE /v1/admin/sessions/:id - Desconectar uma sessão/dispositivo específico
+  server.delete('/sessions/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      await prisma.userSession.delete({
+        where: { id }
+      });
+      return reply.send({ message: 'Dispositivo desconectado com sucesso.' });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao desconectar dispositivo específico.' });
     }
   });
 }
