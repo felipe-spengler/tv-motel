@@ -7,7 +7,7 @@ import axios from 'axios';
 export async function catalogRoutes(server: FastifyInstance) {
   // Hook de autenticação para todas as rotas de catálogo (exceto proxy)
   server.addHook('preHandler', async (request, reply) => {
-    if (request.url.startsWith('/proxy')) {
+    if (request.url.includes('/proxy')) {
       return; // Permite acesso público para o player Video.js carregar os segmentos
     }
     try {
