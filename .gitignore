@@ -10,3 +10,4 @@ node_modules
 .vscode
 dist
 /apps/api/prisma/client
+/credenciais_testes.txt
