@@ -2,6 +2,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm@11.7.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/app-front/package.json ./apps/app-front/
 COPY apps/admin-panel/package.json ./apps/admin-panel/
 RUN pnpm install --filter admin-panel... --frozen-lockfile
 COPY apps/admin-panel ./apps/admin-panel

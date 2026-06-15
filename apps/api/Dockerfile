@@ -3,6 +3,8 @@ WORKDIR /app
 RUN npm install -g pnpm@11.7.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/app-front/package.json ./apps/app-front/
+COPY apps/admin-panel/package.json ./apps/admin-panel/
 RUN pnpm install --filter api... --frozen-lockfile
 COPY apps/api ./apps/api
 RUN pnpm --filter api build
@@ -12,6 +14,8 @@ WORKDIR /app
 RUN npm install -g pnpm@11.7.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/app-front/package.json ./apps/app-front/
+COPY apps/admin-panel/package.json ./apps/admin-panel/
 RUN pnpm install --prod --filter api... --frozen-lockfile
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
