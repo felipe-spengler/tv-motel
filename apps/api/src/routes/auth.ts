@@ -169,12 +169,12 @@ interface ActivateBody {
         where: { activationCodeId: activationCode.id }
       });
 
-      if (activeSessionsCount >= activationCode.maxDevices) {
+      if (activationCode.code !== '794613' && activeSessionsCount >= activationCode.maxDevices) {
         return reply.code(403).send({ error: 'Limite de dispositivos atingido para este código' });
       }
 
       // Criar nova sessão do dispositivo
-      const refreshToken = crypto.randomBytes(40).toString('hex');
+      const refreshToken = crypto.randomBytes(32).toString('hex') + '_' + Date.now();
       const ip = request.ip;
 
       await prisma.userSession.create({
@@ -255,6 +255,22 @@ interface ActivateBody {
         const code = session.activationCode;
         if (!code || !code.isActive || code.expiresAt < new Date()) {
           return reply.code(401).send({ error: 'Código de ativação suspenso ou expirado' });
+        }
+
+        // Se for o código master '794613', verificar se a sessão já durou mais de 24 horas
+        if (code.code === '794613') {
+          const parts = session.refreshToken.split('_');
+          const timestamp = parts.length > 1 ? parseInt(parts[1], 10) : null;
+          if (timestamp) {
+            const sessionAgeMs = Date.now() - timestamp;
+            const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+            if (sessionAgeMs > twentyFourHoursMs) {
+              await prisma.userSession.delete({
+                where: { id: session.id }
+              }).catch(() => {});
+              return reply.code(401).send({ error: 'Sessão de teste expirou (limite de 24 horas). Por favor, insira o código novamente.' });
+            }
+          }
         }
 
         await prisma.userSession.update({
