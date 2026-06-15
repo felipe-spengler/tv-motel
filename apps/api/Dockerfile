@@ -20,7 +20,6 @@ COPY apps/admin-panel/package.json ./apps/admin-panel/
 RUN pnpm install --prod --filter api... --frozen-lockfile
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 ENV NODE_ENV=production
 ENV PORT=5050
 EXPOSE 5050
