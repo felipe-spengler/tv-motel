@@ -74,7 +74,7 @@ export async function catalogRoutes(server: FastifyInstance) {
       if (channel.sourceType === 'YOUTUBE_LIVE') {
         // Retorna a URL de transmissão ao vivo contínua baseada no ID do canal do YouTube
         return reply.send({ 
-          url: `https://www.youtube.com/embed/live?channel=${channel.externalId}&autoplay=1`,
+          url: `https://www.youtube.com/embed/live_stream?channel=${channel.externalId}&autoplay=1`,
           headers: {}
         });
       }
