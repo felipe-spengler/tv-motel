@@ -79,7 +79,7 @@ async function main() {
       title: 'Jovem Pan News Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'UC45v3lH8B9R8V619eM24T5A',
+      externalId: 'UC214PB4G2a5x7d3Wl5R6Cg',
       thumbnailUrl: 'https://img.youtube.com/vi/uf8n4zM8Rpw/maxresdefault.jpg',
       orderPriority: 10,
     },
@@ -87,7 +87,7 @@ async function main() {
       title: 'CNN Brasil Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'UCF0pW8f9d6N33p4ZkG0hO0w',
+      externalId: 'UC1S19cQ3gHwZtG8_Q7-5h-g',
       thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
       orderPriority: 9,
     },
@@ -103,7 +103,7 @@ async function main() {
       title: 'Cazé TV (Esportes)',
       category: 'MOVIES',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'UCuujRq9qQf-nZ-Kx13C-1gA',
+      externalId: 'UCxS4BU9VnSg8H6bY_Qe-1-w',
       thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
       orderPriority: 7,
     },
@@ -138,15 +138,6 @@ async function main() {
       externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
       thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
       orderPriority: 3,
-    },
-    {
-      title: 'Chaturbate - Cams Recomendadas',
-      category: 'LIVE_CAMS',
-      sourceType: 'IFRAME_CAM_AFFILIATE',
-      externalId: 'https://chaturbate.com/in/?track=default&tour=T10e&campaign=tvmotel',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400',
-      isActive: true,
-      orderPriority: 2,
     }
   ];
 

@@ -152,15 +152,13 @@ export async function catalogRoutes(server: FastifyInstance) {
     }
 
     try {
-      const match = externalId.match(/video(?:\.|\-)?([a-zA-Z0-9]+)/);
-      const videoId = match ? match[1] : null;
-      if (!videoId) {
-        throw new Error('Não foi possível identificar o ID do vídeo.');
-      }
-      const embedUrl = `https://www.xvideos.com/embedframe/${videoId}`;
+      const resolvedUrl = await ScraperService.scrapeXVideos(externalId);
       return reply.send({
-        url: embedUrl,
-        headers: {}
+        url: resolvedUrl,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.xvideos.com/'
+        }
       });
     } catch (err: any) {
       server.log.error(err);

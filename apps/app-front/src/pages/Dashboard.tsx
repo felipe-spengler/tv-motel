@@ -24,7 +24,6 @@ export default function Dashboard() {
   
   // Abas e Busca XVideos
   const [activeTab, setActiveTab] = useState<'normal' | 'adult'>('normal');
-  const [adultSubTab, setAdultSubTab] = useState<'streaming' | 'cams'>('streaming');
   const [searchQuery, setSearchQuery] = useState('');
   const [dynamicVideos, setDynamicVideos] = useState<Channel[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -113,16 +112,9 @@ export default function Dashboard() {
   const visibleItems = [
     ...rawChannels.filter(c => {
       const isAdult = isAdultCategory(c.category);
-      if (activeTab === 'adult') {
-        if (adultSubTab === 'cams') {
-          return c.category === 'LIVE_CAMS';
-        } else {
-          return c.category === 'ADULT_CONTENT';
-        }
-      }
-      return !isAdult;
+      return activeTab === 'adult' ? isAdult : !isAdult;
     }),
-    ...(activeTab === 'adult' && adultSubTab === 'streaming' ? dynamicVideos : [])
+    ...(activeTab === 'adult' ? dynamicVideos : [])
   ];
 
   // Escuta teclas de setas do controle remoto / teclado
@@ -190,11 +182,7 @@ export default function Dashboard() {
 
   const filteredCategoryKeys = Object.keys(categories).filter(key => {
     if (activeTab === 'adult') {
-      if (adultSubTab === 'cams') {
-        return key === 'LIVE_CAMS';
-      } else {
-        return key === 'ADULT_CONTENT';
-      }
+      return isAdultCategory(key);
     } else {
       return !isAdultCategory(key);
     }
@@ -282,44 +270,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Sub-Tabs for Adult Tab */}
-        {!loading && !error && activeTab === 'adult' && (
-          <div className="flex justify-center mb-8">
-            <div className="bg-stone-900/60 p-1.5 rounded-2xl border border-stone-850 flex gap-1">
-              <button
-                onClick={() => {
-                  setAdultSubTab('streaming');
-                  setFocusedIndex(-1);
-                }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all focus:outline-none ${
-                  adultSubTab === 'streaming'
-                    ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
-                    : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                <MonitorPlay className="w-4 h-4" />
-                <span>Vídeos Gravados (Streaming)</span>
-              </button>
-              <button
-                onClick={() => {
-                  setAdultSubTab('cams');
-                  setFocusedIndex(-1);
-                }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all focus:outline-none ${
-                  adultSubTab === 'cams'
-                    ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
-                    : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                <Heart className="w-4 h-4" />
-                <span>Câmeras Ao Vivo (Webcams)</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* XVideos Search Bar for Adult Tab */}
-        {!loading && !error && activeTab === 'adult' && adultSubTab === 'streaming' && (
+        {!loading && !error && activeTab === 'adult' && (
           <div className="mb-8 max-w-lg mx-auto flex flex-col gap-3">
             <div className="bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
               <Search className="w-5 h-5 text-stone-500 ml-2" />
