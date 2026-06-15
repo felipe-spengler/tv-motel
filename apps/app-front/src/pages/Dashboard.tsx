@@ -24,6 +24,7 @@ export default function Dashboard() {
   
   // Abas e Busca XVideos
   const [activeTab, setActiveTab] = useState<'normal' | 'adult'>('normal');
+  const [adultSubTab, setAdultSubTab] = useState<'streaming' | 'cams'>('streaming');
   const [searchQuery, setSearchQuery] = useState('');
   const [dynamicVideos, setDynamicVideos] = useState<Channel[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -112,9 +113,16 @@ export default function Dashboard() {
   const visibleItems = [
     ...rawChannels.filter(c => {
       const isAdult = isAdultCategory(c.category);
-      return activeTab === 'adult' ? isAdult : !isAdult;
+      if (activeTab === 'adult') {
+        if (adultSubTab === 'cams') {
+          return c.category === 'LIVE_CAMS';
+        } else {
+          return c.category === 'ADULT_CONTENT';
+        }
+      }
+      return !isAdult;
     }),
-    ...(activeTab === 'adult' ? dynamicVideos : [])
+    ...(activeTab === 'adult' && adultSubTab === 'streaming' ? dynamicVideos : [])
   ];
 
   // Escuta teclas de setas do controle remoto / teclado
@@ -182,7 +190,11 @@ export default function Dashboard() {
 
   const filteredCategoryKeys = Object.keys(categories).filter(key => {
     if (activeTab === 'adult') {
-      return isAdultCategory(key);
+      if (adultSubTab === 'cams') {
+        return key === 'LIVE_CAMS';
+      } else {
+        return key === 'ADULT_CONTENT';
+      }
     } else {
       return !isAdultCategory(key);
     }
@@ -270,8 +282,44 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* XVideos Search Bar for Adult Tab */}
+        {/* Sub-Tabs for Adult Tab */}
         {!loading && !error && activeTab === 'adult' && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-stone-900/60 p-1.5 rounded-2xl border border-stone-850 flex gap-1">
+              <button
+                onClick={() => {
+                  setAdultSubTab('streaming');
+                  setFocusedIndex(-1);
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all focus:outline-none ${
+                  adultSubTab === 'streaming'
+                    ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
+                    : 'text-stone-400 hover:text-white'
+                }`}
+              >
+                <MonitorPlay className="w-4 h-4" />
+                <span>Vídeos Gravados (Streaming)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setAdultSubTab('cams');
+                  setFocusedIndex(-1);
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all focus:outline-none ${
+                  adultSubTab === 'cams'
+                    ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
+                    : 'text-stone-400 hover:text-white'
+                }`}
+              >
+                <Heart className="w-4 h-4" />
+                <span>Câmeras Ao Vivo (Webcams)</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* XVideos Search Bar for Adult Tab */}
+        {!loading && !error && activeTab === 'adult' && adultSubTab === 'streaming' && (
           <div className="mb-8 max-w-lg mx-auto flex flex-col gap-3">
             <div className="bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
               <Search className="w-5 h-5 text-stone-500 ml-2" />
@@ -299,9 +347,13 @@ export default function Dashboard() {
                 { label: '🔥 Geral', tag: '' },
                 { label: '💆 Massagem', tag: 'massagem' },
                 { label: '🇧🇷 Amador', tag: 'amador nacional' },
+                { label: '👨‍❤️‍👨 Gay', tag: 'gay' },
+                { label: '👩‍❤️‍👩 Lésbicas', tag: 'lesbicas' },
+                { label: '👥 Grupo', tag: 'sexo em grupo suruba' },
                 { label: '💑 Casal', tag: 'casal' },
                 { label: '💋 Oral', tag: 'boquete' },
-                { label: '🍑 Anal', tag: 'anal' }
+                { label: '🍑 Anal', tag: 'anal' },
+                { label: '👾 Hentai', tag: 'hentai' }
               ].map(pill => (
                 <button
                   key={pill.label}

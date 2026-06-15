@@ -39,7 +39,7 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
 
   // Inicializar e destruir o player de vídeo do Video.js
   useEffect(() => {
-    if (!videoRef.current || !streamUrl || sourceType === 'YOUTUBE_LIVE' || sourceType === 'IFRAME_CAM_AFFILIATE') return;
+    if (!videoRef.current || !streamUrl || sourceType === 'YOUTUBE_LIVE' || sourceType === 'SCRAPER_XVIDEOS' || sourceType === 'IFRAME_CAM_AFFILIATE') return;
 
     // Inicializar Video.js
     const options = {
@@ -126,7 +126,7 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
 
         {!loading && !error && streamUrl && (
           <>
-            {sourceType === 'YOUTUBE_LIVE' ? (
+            {sourceType === 'YOUTUBE_LIVE' || sourceType === 'SCRAPER_XVIDEOS' ? (
               <iframe
                 src={streamUrl}
                 title={title}
