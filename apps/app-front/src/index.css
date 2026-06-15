@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c0a09; /* Stone 950 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #292524; /* Stone 800 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e11d48; /* Rose 600 */
+}
+
+/* Smart TV glowing active state outline */
+.tv-active-focus {
+  outline: none;
+  border-color: #fb7185 !important; /* Rose 400 */
+  box-shadow: 0 0 15px rgba(251, 113, 133, 0.6);
+  transform: scale(1.05);
+  z-index: 10;
+}

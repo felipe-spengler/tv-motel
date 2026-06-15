@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PlanType {
+  FREE
+  PREMIUM
+}
+
+enum DeviceType {
+  WEB_MOBILE
+  WEB_DESKTOP
+  ANDROID_TV
+  FIRE_STICK
+}
+
+enum Category {
+  NEWS
+  MOVIES
+  ADULT_CONTENT
+  LIVE_CAMS
+  PODCASTS
+}
+
+enum SourceType {
+  YOUTUBE_LIVE
+  M3U8_FAST
+  SCRAPER_XVIDEOS
+  IFRAME_CAM_AFFILIATE
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role          @default(USER)
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  
+  subscription Subscription?
+  sessions     UserSession[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planType  PlanType @default(FREE) @map("plan_type")
+  expiresAt DateTime? @map("expires_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("subscriptions")
+}
+
+model UserSession {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceType   DeviceType @map("device_type")
+  refreshToken String     @unique @map("refresh_token") @db.VarChar(512)
+  lastActivity DateTime   @default(now()) @map("last_activity")
+  ipAddress    String?    @map("ip_address") @db.VarChar(45)
+
+  @@map("user_sessions")
+}
+
+model CatalogChannel {
+  id            String     @id @default(uuid()) @db.Uuid
+  title         String
+  category      Category
+  sourceType    SourceType @map("source_type")
+  externalId    String     @map("external_id") // ID do YouTube ou Slug do vídeo alvo
+  thumbnailUrl  String     @map("thumbnail_url") @db.Text
+  isActive      Boolean    @default(true) @map("is_active")
+  orderPriority Int        @default(0) @map("order_priority")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@map("catalog_channels")
+}

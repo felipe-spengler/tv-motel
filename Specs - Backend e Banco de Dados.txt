@@ -1,0 +1,33 @@
+📑 Especificação Técnica (Spec) — Backend & Banco de Dados (B2C)
+Projeto: Plataforma Agregadora de Entretenimento Híbrido
+
+Versão: 2.1 (Foco: MVP Fastify + Prisma + Redis Cache)
+
+Objetivo: Prover APIs para cadastro/login de usuários finais, controle de sessões em múltiplos dispositivos (com bloqueio de telas simultâneas), caching de links temporários de scrapers e indexação de canais FAST.
+
+1. Arquitetura e Tecnologias
+- Runtime: Node.js (TypeScript) com Fastify (executando na porta 5050).
+- ORM / Banco de Dados: Prisma + PostgreSQL (porta 5435 local) para usuários, inscrições e sessões.
+- Cache em Memória: Redis (porta 6375 local) para cache de scrapers de vídeo em tempo real (TTL de 2 horas).
+
+2. Modelagem do Banco de Dados (Prisma Schema)
+- users: Tabela de usuários. Contém id, email, passwordHash, role (USER, ADMIN), status (ACTIVE, SUSPENDED), createdAt, updatedAt.
+- subscriptions: Relação 1:1 com users para controle de planos (planType: FREE, PREMIUM; expiresAt).
+- user_sessions: Relação 1:N com users para controlar o número máximo de dispositivos simultâneos conectados por conta (deviceType: WEB_MOBILE, WEB_DESKTOP, ANDROID_TV, FIRE_STICK).
+- catalog_channels: Tabela indexadora dos canais da grade. Contém id, title, category, sourceType (YOUTUBE_LIVE, M3U8_FAST, SCRAPER_XVIDEOS, IFRAME_CAM_AFFILIATE), externalId (slug/ID do vídeo/canal), thumbnailUrl, isActive, orderPriority, createdAt, updatedAt.
+
+3. Lógica de Scraping & Estratégia de Cache (Redis)
+- Quando o frontend chama GET /v1/catalog/stream/:id com um canal do tipo SCRAPER_XVIDEOS:
+  1. O backend busca no Redis pela chave "stream:video:<id>".
+  2. Hit (Encontrou no cache): Retorna a URL armazenada imediatamente (< 50ms).
+  3. Miss (Não encontrou): Executa o script do Scraper (via axios + cheerio/regex) para ler o site de origem, extrai o link direto (.mp4 ou .m3u8), salva no Redis com TTL de 2 horas e responde ao frontend.
+
+4. Endpoints da API (/v1)
+- Autenticação (/v1/auth/*):
+  - POST /register: Cadastra usuário e define assinatura grátis inicial.
+  - POST /login: Valida credenciais, verifica limite de sessões ativas e emite JWT + refreshToken.
+  - POST /refresh: Renova o token JWT usando o refreshToken.
+  - POST /logout: Remove a sessão ativa correspondente.
+- Catálogo e Streaming (/v1/catalog/*):
+  - GET /grid: Retorna categorias e canais ativos estruturados.
+  - GET /stream/:id: Resolve a URL de streaming (via cache ou scraper) e retorna a URL + headers requeridos.

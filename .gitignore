@@ -1,0 +1,11 @@
+node_modules
+/apps/*/dist
+/apps/*/node_modules
+.env
+.env.*
+.pnpm-store
+*.log
+.DS_Store
+.idea
+.vscode
+dist

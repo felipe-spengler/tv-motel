@@ -1,0 +1,34 @@
+📑 Especificação Técnica Principal (Master Spec)
+Projeto: Plataforma Agregadora de Entretenimento Híbrido
+
+Versão: 2.1 (Foco: MVP unificado de Software B2C com Coolify, pnpm workspaces e Capacitor)
+
+Domínio Principal: tv.motelinteligente.com
+
+1. Arquitetura de Roteamento de Rede (Proxy Reverso via Coolify)
+Como você utilizará o Coolify na VPS para gerenciar seus deploys, ele ficará encarregado do roteamento de entrada (HTTPS/SSL automático) e apontará o tráfego externo para as portas corretas das aplicações locais expostas em Docker:
+
+* tv.motelinteligente.com/api/*    -> Direciona para o Backend (Fastify) [Exposto localmente na porta 5050]
+* tv.motelinteligente.com/admin/*  -> Direciona para o Painel Administrativo [Exposto localmente na porta 3030]
+* tv.motelinteligente.com/*        -> Direciona para o Aplicativo Frontend (PWA) [Exposto localmente na porta 4040]
+
+2. Estratégia de Repositório (Monorepo pnpm workspaces)
+Utilizaremos o pnpm workspaces para gerenciar o projeto com alta performance e compatibilidade de tipos.
+
+Estrutura de Pastas:
+motelinteligente-tv/
+├── apps/
+│   ├── api/                 # Backend (Fastify + Prisma ORM + Scrapers) -> Porta 5050
+│   ├── app-front/           # App de streaming (Vite + React + Tailwind) -> Porta 4040
+│   └── admin-panel/         # Painel administrativo (Vite + React + Tailwind) -> Porta 3030
+├── pnpm-workspace.yaml      # Configuração dos workspaces e allowBuilds do pnpm
+├── docker-compose.yml       # Banco de dados Postgres (Porta 5435) e Redis (Porta 6375) locais
+└── README.md
+
+3. Reestruturação da Spec do Admin
+O painel administrativo em /admin terá duas funções principais:
+- Tela 1 (Métricas e Sessões): Gráfico e listagem de usuários logados e sessões simultâneas ativas por tipo de dispositivo.
+- Tela 2 (CRUD de Catálogo): Gestão ativa de canais/vídeos, permitindo ordenar, cadastrar ou desativar temporariamente scrapers que quebraram devido a mudanças nos sites de origem.
+
+4. Capacitor & Distribuição Nativa
+O app frontend (apps/app-front) foi estruturado em Vite + React de modo que sua build estática (pasta dist) seja 100% compatível com o Capacitor para empacotar o app como APK para Android TV/Fire Stick.

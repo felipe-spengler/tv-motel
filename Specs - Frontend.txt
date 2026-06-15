@@ -1,0 +1,21 @@
+📑 Especificação Técnica (Spec) — Frontend
+Projeto: Plataforma Agregadora de Entretenimento Híbrido
+
+Versão: 2.1 (Foco: Vite + React + Tailwind + Capacitor)
+
+Objetivo: Prover interfaces unificadas, fluidas e ultra-rápidas para o App de Streaming (porta 4040) e o Painel Administrativo (porta 3030), preparadas para compilação nativa de Smart TVs e dispositivos móveis via Capacitor.
+
+1. Tecnologias do Frontend
+- Framework: Vite + React (TypeScript) + Tailwind CSS.
+- Player de Vídeo: Video.js (ou HTML5 Video estilizado com suporte a streaming HLS .m3u8).
+- Distribuição Smart TV / Android: O código compilado na pasta `dist` será integrado com Capacitor (`@capacitor/core` e `@capacitor/cli`) para geração do pacote Android/Android TV (.apk).
+
+2. Adaptação de Interface (Breakpoints e Foco TV)
+- Mobile (Navegador/PWA): Navegação vertical por toque com barra fixa na parte inferior (Início, Canais, Cams, Conta).
+- Desktop: Grid de canais e carrosséis horizontais navegáveis por mouse.
+- TV (Android TV / Fire Stick): O app escuta eventos de teclado (ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Enter). O elemento em foco ganha bordas iluminadas e aumento de escala (`scale-105 duration-200 border-rose-500`).
+
+3. Fluxo de Telas
+- Tela 1: Login / Cadastro (/login) -> Formulário simples com validação.
+- Tela 2: Dashboard Principal (/) -> Carrosséis categorizados (Canais FAST, Canais Adultos com scrapers e Webcams online de afiliados).
+- Tela 3: Player de Vídeo (/player/:id) -> Carrega a URL de streaming do backend e exibe player em tela cheia com botão de "Tentar Novamente (Atualizar Link)" caso o stream caia por expiração de token.

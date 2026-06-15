@@ -1,0 +1,675 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { apiClient, UserInfo } from '../utils/api.js';
+import { 
+  LogOut, Users, Activity, Plus, Edit2, Trash2, CheckCircle2, XCircle, 
+  Settings, AlertCircle, Save, X
+} from 'lucide-react';
+
+interface Channel {
+  id: string;
+  title: string;
+  category: 'NEWS' | 'MOVIES' | 'ADULT_CONTENT' | 'LIVE_CAMS' | 'PODCASTS';
+  sourceType: 'YOUTUBE_LIVE' | 'M3U8_FAST' | 'SCRAPER_XVIDEOS' | 'IFRAME_CAM_AFFILIATE';
+  externalId: string;
+  thumbnailUrl: string;
+  isActive: boolean;
+  orderPriority: number;
+}
+
+interface ActiveSession {
+  id: string;
+  deviceType: string;
+  lastActivity: string;
+  ipAddress: string | null;
+  user: {
+    email: string;
+    role: string;
+  }
+}
+
+interface UserListItem {
+  id: string;
+  email: string;
+  role: string;
+  status: 'ACTIVE' | 'SUSPENDED';
+  createdAt: string;
+  subscription?: {
+    planType: string;
+    expiresAt: string | null;
+  } | null;
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [adminUser, setAdminUser] = useState<UserInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<'metrics' | 'catalog' | 'users'>('metrics');
+  
+  // States de Dados
+  const [metrics, setMetrics] = useState<{ totalUsers: number, activeSessionsCount: number } | null>(null);
+  const [sessions, setSessions] = useState<ActiveSession[]>([]);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // States do Form/Modal de Canais
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formCategory, setFormCategory] = useState<'NEWS' | 'MOVIES' | 'ADULT_CONTENT' | 'LIVE_CAMS' | 'PODCASTS'>('NEWS');
+  const [formSourceType, setFormSourceType] = useState<'YOUTUBE_LIVE' | 'M3U8_FAST' | 'SCRAPER_XVIDEOS' | 'IFRAME_CAM_AFFILIATE'>('YOUTUBE_LIVE');
+  const [formExternalId, setFormExternalId] = useState('');
+  const [formThumbnailUrl, setFormThumbnailUrl] = useState('');
+  const [formIsActive, setFormIsActive] = useState(true);
+  const [formOrderPriority, setFormOrderPriority] = useState(0);
+
+  useEffect(() => {
+    const user = apiClient.getUser();
+    if (!user || user.role !== 'ADMIN') {
+      navigate('/login');
+      return;
+    }
+    setAdminUser(user);
+    loadData();
+  }, [navigate]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Carregar todas as informações do painel paralelamente
+      const [metricsData, usersData, channelsData] = await Promise.all([
+        apiClient.request('/admin/metrics'),
+        apiClient.request('/admin/users'),
+        apiClient.request('/admin/channels')
+      ]);
+
+      setMetrics({
+        totalUsers: metricsData.totalUsers,
+        activeSessionsCount: metricsData.activeSessionsCount
+      });
+      setSessions(metricsData.activeSessions || []);
+      setUsers(usersData || []);
+      setChannels(channelsData || []);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao consultar APIs do backend.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    apiClient.clearAuth();
+    navigate('/login');
+  };
+
+  // Alternar Status do Usuário (Suspender/Ativar)
+  const toggleUserStatus = async (userId: string, currentStatus: 'ACTIVE' | 'SUSPENDED') => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    try {
+      await apiClient.request(`/admin/users/${userId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+      // Atualizar lista local
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus } : u));
+      // Atualizar sessões (caso suspenso, cai do ar)
+      if (newStatus === 'SUSPENDED') {
+        setSessions(prev => prev.filter(s => s.user.email !== users.find(u => u.id === userId)?.email));
+      }
+    } catch (err: any) {
+      alert(`Erro ao alterar status: ${err.message}`);
+    }
+  };
+
+  // Toggle rápido de ativação do canal (para desativar scraper de imediato)
+  const toggleChannelActive = async (channel: Channel) => {
+    const nextActive = !channel.isActive;
+    try {
+      await apiClient.request(`/admin/channels/${channel.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...channel,
+          isActive: nextActive
+        })
+      });
+      setChannels(prev => prev.map(c => c.id === channel.id ? { ...c, isActive: nextActive } : c));
+    } catch (err: any) {
+      alert(`Erro ao atualizar canal: ${err.message}`);
+    }
+  };
+
+  // Excluir Canal
+  const handleDeleteChannel = async (channelId: string) => {
+    if (!confirm('Deseja realmente remover este canal permanentemente?')) return;
+    try {
+      await apiClient.request(`/admin/channels/${channelId}`, {
+        method: 'DELETE'
+      });
+      setChannels(prev => prev.filter(c => c.id !== channelId));
+    } catch (err: any) {
+      alert(`Erro ao deletar canal: ${err.message}`);
+    }
+  };
+
+  // Abrir Modal para Criação ou Edição
+  const openChannelModal = (channel: Channel | null = null) => {
+    if (channel) {
+      setEditingChannel(channel);
+      setFormTitle(channel.title);
+      setFormCategory(channel.category);
+      setFormSourceType(channel.sourceType);
+      setFormExternalId(channel.externalId);
+      setFormThumbnailUrl(channel.thumbnailUrl);
+      setFormIsActive(channel.isActive);
+      setFormOrderPriority(channel.orderPriority);
+    } else {
+      setEditingChannel(null);
+      setFormTitle('');
+      setFormCategory('NEWS');
+      setFormSourceType('YOUTUBE_LIVE');
+      setFormExternalId('');
+      setFormThumbnailUrl('');
+      setFormIsActive(true);
+      setFormOrderPriority(0);
+    }
+    setIsModalOpen(true);
+  };
+
+  // Submissão do CRUD de Canais
+  const handleSaveChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      title: formTitle,
+      category: formCategory,
+      sourceType: formSourceType,
+      externalId: formExternalId,
+      thumbnailUrl: formThumbnailUrl,
+      isActive: formIsActive,
+      orderPriority: Number(formOrderPriority)
+    };
+
+    try {
+      if (editingChannel) {
+        // Atualizar
+        const updated = await apiClient.request(`/admin/channels/${editingChannel.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        setChannels(prev => prev.map(c => c.id === editingChannel.id ? updated : c));
+      } else {
+        // Criar novo
+        const created = await apiClient.request('/admin/channels', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        setChannels(prev => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      alert(`Erro ao salvar canal: ${err.message}`);
+    }
+  };
+
+  const getSourceIcon = (type: string) => {
+    switch (type) {
+      case 'YOUTUBE_LIVE': return <span className="bg-red-900/40 text-red-400 border border-red-800/30 px-2.5 py-1 rounded-lg text-xs font-semibold">YouTube Live</span>;
+      case 'M3U8_FAST': return <span className="bg-indigo-900/40 text-indigo-400 border border-indigo-800/30 px-2.5 py-1 rounded-lg text-xs font-semibold">FAST (m3u8)</span>;
+      case 'SCRAPER_XVIDEOS': return <span className="bg-amber-900/40 text-amber-400 border border-amber-800/30 px-2.5 py-1 rounded-lg text-xs font-semibold">Scraper XVideos</span>;
+      case 'IFRAME_CAM_AFFILIATE': return <span className="bg-pink-900/40 text-pink-400 border border-pink-800/30 px-2.5 py-1 rounded-lg text-xs font-semibold">Iframe Cams</span>;
+      default: return <span className="bg-stone-800 text-stone-300 px-2 py-0.5 rounded text-xs">{type}</span>;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-gray-155 flex flex-col font-sans">
+      
+      {/* Header */}
+      <header className="bg-card border-b border-stone-850 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+            <Settings className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              Painel Administrativo <span className="text-xs bg-stone-850 text-stone-400 px-2 py-1 rounded border border-stone-800">B2C</span>
+            </h1>
+            <p className="text-xs text-stone-450 mt-0.5">Gestão geral de métricas e grade da plataforma</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col text-right text-xs">
+            <span className="text-stone-500 font-semibold uppercase">Logado como</span>
+            <span className="text-stone-300 font-medium">{adminUser?.email}</span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 hover:bg-stone-850 text-stone-450 hover:text-white p-2.5 rounded-xl border border-stone-800 transition-all focus:outline-none"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-semibold">Desconectar</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Tabs Layout */}
+      <div className="border-b border-stone-850 bg-stone-950 px-6">
+        <nav className="flex gap-6 max-w-7xl mx-auto">
+          <button
+            onClick={() => setActiveTab('metrics')}
+            className={`py-4 text-sm font-semibold border-b-2 transition-all focus:outline-none ${
+              activeTab === 'metrics' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
+            }`}
+          >
+            Métricas & Sessões
+          </button>
+          <button
+            onClick={() => setActiveTab('catalog')}
+            className={`py-4 text-sm font-semibold border-b-2 transition-all focus:outline-none ${
+              activeTab === 'catalog' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
+            }`}
+          >
+            Gerenciamento do Catálogo
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-4 text-sm font-semibold border-b-2 transition-all focus:outline-none ${
+              activeTab === 'users' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
+            }`}
+          >
+            Usuários Cadastrados
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Panel Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6">
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-stone-450 text-sm">Consultando banco de dados...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-950/20 border border-red-900/40 p-4 rounded-xl flex items-center gap-3 text-red-200 mb-6">
+            <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            {/* VIEW 1: METRICS */}
+            {activeTab === 'metrics' && (
+              <div className="space-y-8">
+                {/* Metrics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-card border border-stone-850 p-6 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Total de Contas</h3>
+                      <p className="text-4xl font-extrabold text-white">{metrics?.totalUsers}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-primary" />
+                    </div>
+                  </div>
+
+                  <div className="bg-card border border-stone-850 p-6 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Sessões Ativas (Online)</h3>
+                      <p className="text-4xl font-extrabold text-white">{metrics?.activeSessionsCount}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                      <Activity className="w-6 h-6 text-green-500" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Sessions Grid */}
+                <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
+                  <div className="px-6 py-4 border-b border-stone-850 flex items-center justify-between bg-stone-900/30">
+                    <h3 className="font-bold text-white text-base">Quem está assistindo agora</h3>
+                  </div>
+
+                  {sessions.length === 0 ? (
+                    <div className="p-8 text-center text-stone-500">
+                      Nenhuma sessão ativa encontrada no momento.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
+                          <tr>
+                            <th className="px-6 py-3.5">E-mail do Usuário</th>
+                            <th className="px-6 py-3.5">Dispositivo</th>
+                            <th className="px-6 py-3.5">Endereço IP</th>
+                            <th className="px-6 py-3.5">Última Atividade</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-850">
+                          {sessions.map(sess => (
+                            <tr key={sess.id} className="hover:bg-stone-900/20 text-stone-300">
+                              <td className="px-6 py-4 font-medium text-white">{sess.user.email}</td>
+                              <td className="px-6 py-4">
+                                <span className="bg-stone-850 border border-stone-800 text-stone-300 text-xs px-2.5 py-1 rounded-lg">
+                                  {sess.deviceType}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 font-mono text-stone-400">{sess.ipAddress || 'Não fornecido'}</td>
+                              <td className="px-6 py-4">{new Date(sess.lastActivity).toLocaleTimeString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* VIEW 2: USERS */}
+            {activeTab === 'users' && (
+              <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-stone-850 flex justify-between bg-stone-900/30">
+                  <h3 className="font-bold text-white text-base">Gestão de Usuários e Controle de Acesso</h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
+                      <tr>
+                        <th className="px-6 py-3.5">Usuário</th>
+                        <th className="px-6 py-3.5">Tipo de Assinatura</th>
+                        <th className="px-6 py-3.5">Data de Criação</th>
+                        <th className="px-6 py-3.5">Status da Conta</th>
+                        <th className="px-6 py-3.5 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-850">
+                      {users.map(u => (
+                        <tr key={u.id} className="hover:bg-stone-900/20 text-stone-300">
+                          <td className="px-6 py-4 flex flex-col">
+                            <span className="font-medium text-white">{u.email}</span>
+                            <span className="text-xs text-stone-500 uppercase font-bold mt-0.5">{u.role}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`text-xs px-2.5 py-1 rounded-lg font-bold border ${
+                              u.subscription?.planType === 'PREMIUM' 
+                                ? 'bg-yellow-950/20 text-yellow-400 border-yellow-850/50' 
+                                : 'bg-stone-850 text-stone-400 border-stone-800'
+                            }`}>
+                              {u.subscription?.planType || 'FREE'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-stone-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              u.status === 'ACTIVE' ? 'bg-green-950/30 text-green-400' : 'bg-red-950/30 text-red-400'
+                            }`}>
+                              {u.status === 'ACTIVE' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                              {u.status === 'ACTIVE' ? 'Ativa' : 'Suspensa'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {u.role !== 'ADMIN' && (
+                              <button
+                                onClick={() => toggleUserStatus(u.id, u.status)}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${
+                                  u.status === 'ACTIVE' 
+                                    ? 'bg-red-950/20 hover:bg-red-900/20 text-red-400 border-red-900/50' 
+                                    : 'bg-green-950/20 hover:bg-green-900/20 text-green-400 border-green-900/50'
+                                }`}
+                              >
+                                {u.status === 'ACTIVE' ? 'Suspender Conta' : 'Ativar Conta'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* VIEW 3: CATALOG CRUD */}
+            {activeTab === 'catalog' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white tracking-wide">Catálogo de Grade de Vídeo</h2>
+                    <p className="text-xs text-stone-450 mt-0.5">Adicione ou ative/desative feeds de vídeo e robôs de scraping</p>
+                  </div>
+                  <button
+                    onClick={() => openChannelModal(null)}
+                    className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-primary/20 transition-all focus:outline-none"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Cadastrar Novo Canal</span>
+                  </button>
+                </div>
+
+                {/* Channels Grid / Table */}
+                <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
+                        <tr>
+                          <th className="px-6 py-3.5">Título / Miniatura</th>
+                          <th className="px-6 py-3.5">Categoria</th>
+                          <th className="px-6 py-3.5">Fonte / Link</th>
+                          <th className="px-6 py-3.5">Prioridade</th>
+                          <th className="px-6 py-3.5">Status</th>
+                          <th className="px-6 py-3.5 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-850">
+                        {channels.map(channel => (
+                          <tr key={channel.id} className="hover:bg-stone-900/20 text-stone-300">
+                            <td className="px-6 py-4 flex items-center gap-4">
+                              <img
+                                src={channel.thumbnailUrl}
+                                alt={channel.title}
+                                className="w-14 aspect-video rounded-lg object-cover bg-stone-950 border border-stone-800"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400';
+                                }}
+                              />
+                              <span className="font-semibold text-white truncate max-w-xs">{channel.title}</span>
+                            </td>
+                            <td className="px-6 py-4 uppercase font-bold text-xs text-stone-450 tracking-wide">
+                              {channel.category}
+                            </td>
+                            <td className="px-6 py-4 flex flex-col gap-1.5">
+                              {getSourceIcon(channel.sourceType)}
+                              <span className="text-xs text-stone-500 font-mono truncate max-w-[200px]" title={channel.externalId}>
+                                {channel.externalId}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-mono">{channel.orderPriority}</td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() => toggleChannelActive(channel)}
+                                className={`text-xs px-2.5 py-1 rounded-lg border font-semibold ${
+                                  channel.isActive 
+                                    ? 'bg-green-950/20 text-green-400 border-green-900/30 hover:bg-green-900/10' 
+                                    : 'bg-red-950/20 text-red-400 border-red-900/30 hover:bg-red-900/10'
+                                }`}
+                                title="Clique para alternar o status do canal"
+                              >
+                                {channel.isActive ? 'Ativo (Online)' : 'Inativo (Offline)'}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => openChannelModal(channel)}
+                                  className="p-2 bg-stone-850 hover:bg-stone-800 border border-stone-800 rounded-lg text-stone-300 hover:text-white transition-all"
+                                  title="Editar Canal"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteChannel(channel.id)}
+                                  className="p-2 bg-red-950/20 hover:bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 transition-all"
+                                  title="Remover Canal"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* CRUD MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-stone-850 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-stone-850 flex items-center justify-between bg-stone-900/30">
+              <h3 className="font-bold text-white text-lg">
+                {editingChannel ? 'Editar Detalhes do Canal' : 'Cadastrar Novo Canal / Vídeo'}
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-stone-400 hover:text-white focus:outline-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveChannel} className="p-6 space-y-4">
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Título do Canal / Vídeo</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 placeholder-stone-600 focus:outline-none"
+                  placeholder="Ex: CNN Brasil Ao Vivo, Vídeo Pornô Amador, etc."
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Categoria</label>
+                  <select
+                    className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 focus:outline-none"
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value as any)}
+                  >
+                    <option value="NEWS">Notícias</option>
+                    <option value="MOVIES">Filmes & Canais FAST</option>
+                    <option value="ADULT_CONTENT">Conteúdo Adulto</option>
+                    <option value="LIVE_CAMS">Câmeras Ao Vivo</option>
+                    <option value="PODCASTS">Podcasts</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Tipo de Fonte de Mídia</label>
+                  <select
+                    className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 focus:outline-none"
+                    value={formSourceType}
+                    onChange={(e) => setFormSourceType(e.target.value as any)}
+                  >
+                    <option value="YOUTUBE_LIVE">YouTube Live (Embed)</option>
+                    <option value="M3U8_FAST">Link Direto (FAST HLS .m3u8)</option>
+                    <option value="SCRAPER_XVIDEOS">Scraper XVideos (Em tempo real)</option>
+                    <option value="IFRAME_CAM_AFFILIATE">Iframe Afiliado de Cams</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">
+                  ID Externo ou URL de Transmissão
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-250 placeholder-stone-600 focus:outline-none font-mono"
+                  placeholder={
+                    formSourceType === 'YOUTUBE_LIVE' ? 'ID do Vídeo (ex: uf8n4zM8Rpw)' :
+                    formSourceType === 'SCRAPER_XVIDEOS' ? 'Slug do Vídeo (ex: video.ubd/mulher_gostosa)' :
+                    'URL completa (.mp4, .m3u8 ou Iframe)'
+                  }
+                  value={formExternalId}
+                  onChange={(e) => setFormExternalId(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">URL da Thumbnail (Miniatura)</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 placeholder-stone-600 focus:outline-none"
+                  placeholder="https://exemplo.com/imagem.jpg"
+                  value={formThumbnailUrl}
+                  onChange={(e) => setFormThumbnailUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Prioridade de Ordenação</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 focus:outline-none"
+                    value={formOrderPriority}
+                    onChange={(e) => setFormOrderPriority(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 pl-2 h-full pt-6">
+                  <input
+                    type="checkbox"
+                    id="formIsActive"
+                    className="w-5 h-5 rounded accent-primary bg-stone-950 border border-stone-800"
+                    checked={formIsActive}
+                    onChange={(e) => setFormIsActive(e.target.checked)}
+                  />
+                  <label htmlFor="formIsActive" className="text-stone-300 text-sm font-semibold uppercase select-none cursor-pointer">
+                    Canal Ativo
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-stone-850">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 bg-stone-850 hover:bg-stone-800 text-stone-300 font-bold py-3.5 rounded-xl border border-stone-800 transition-all text-center focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 focus:outline-none"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Salvar Canal</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
