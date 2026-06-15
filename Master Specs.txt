@@ -1,16 +1,19 @@
 📑 Especificação Técnica Principal (Master Spec)
 Projeto: Plataforma Agregadora de Entretenimento Híbrido
 
-Versão: 2.1 (Foco: MVP unificado de Software B2C com Coolify, pnpm workspaces e Capacitor)
+Versão: 3.0 (Foco: Sistema de Códigos de Ativação de 6 Dígitos, Roteamento Interno no Coolify e Limite de Dispositivos)
 
 Domínio Principal: tv.motelinteligente.com
 
-1. Arquitetura de Roteamento de Rede (Proxy Reverso via Coolify)
-Como você utilizará o Coolify na VPS para gerenciar seus deploys, ele ficará encarregado do roteamento de entrada (HTTPS/SSL automático) e apontará o tráfego externo para as portas corretas das aplicações locais expostas em Docker:
+1. Arquitetura de Roteamento de Rede (Proxy Reverso via Coolify & Traefik)
+Como você utilizará o Coolify na VPS para gerenciar seus deploys, todas as portas dos containers internos (5050, 4040, 3030, 5432, 6379) ficam OMITIDAS e não expostas para a internet pública (evitando conflitos no host da VPS e invasões). Apenas a rede interna do Docker (bridge) é usada para comunicação.
 
-* tv.motelinteligente.com/api/*    -> Direciona para o Backend (Fastify) [Exposto localmente na porta 5050]
-* tv.motelinteligente.com/admin/*  -> Direciona para o Painel Administrativo [Exposto localmente na porta 3030]
-* tv.motelinteligente.com/*        -> Direciona para o Aplicativo Frontend (PWA) [Exposto localmente na porta 4040]
+* O Traefik do Coolify escuta a porta 80/443 sob o domínio `tv.motelinteligente.com`.
+* Ele direciona todo o tráfego externo para o container do `gateway` (Nginx), exposto na porta 80.
+* O `gateway` faz o roteamento interno baseado em rotas:
+  - tv.motelinteligente.com/api/*    -> Roteado para o container `api` (porta 5050)
+  - tv.motelinteligente.com/admin/*  -> Roteado para o container `admin-panel` (porta 3030)
+  - tv.motelinteligente.com/*        -> Roteado para o container `app-front` (porta 4040)
 
 2. Estratégia de Repositório (Monorepo pnpm workspaces)
 Utilizaremos o pnpm workspaces para gerenciar o projeto com alta performance e compatibilidade de tipos.
@@ -18,17 +21,19 @@ Utilizaremos o pnpm workspaces para gerenciar o projeto com alta performance e c
 Estrutura de Pastas:
 motelinteligente-tv/
 ├── apps/
-│   ├── api/                 # Backend (Fastify + Prisma ORM + Scrapers) -> Porta 5050
-│   ├── app-front/           # App de streaming (Vite + React + Tailwind) -> Porta 4040
-│   └── admin-panel/         # Painel administrativo (Vite + React + Tailwind) -> Porta 3030
-├── pnpm-workspace.yaml      # Configuração dos workspaces e allowBuilds do pnpm
-├── docker-compose.yml       # Banco de dados Postgres (Porta 5435) e Redis (Porta 6375) locais
+│   ├── api/                 # Backend (Fastify + Prisma ORM + Scrapers) -> Porta 5050 (interna)
+│   ├── app-front/           # App de streaming (Vite + React + Tailwind) -> Porta 4040 (interna)
+│   ├── admin-panel/         # Painel administrativo (Vite + React + Tailwind) -> Porta 3030 (interna)
+│   └── gateway/             # Proxy reverso Nginx unificador -> Porta 80
+├── pnpm-workspace.yaml      # Configuração dos workspaces do pnpm
+├── docker-compose.yml       # Orquestração local/VPS sem portas expostas no host (exceto o gateway)
 └── README.md
 
 3. Reestruturação da Spec do Admin
-O painel administrativo em /admin terá duas funções principais:
-- Tela 1 (Métricas e Sessões): Gráfico e listagem de usuários logados e sessões simultâneas ativas por tipo de dispositivo.
-- Tela 2 (CRUD de Catálogo): Gestão ativa de canais/vídeos, permitindo ordenar, cadastrar ou desativar temporariamente scrapers que quebraram devido a mudanças nos sites de origem.
+O painel administrativo em /admin terá três funções principais:
+- Tela 1 (Métricas e Sessões): Métricas gerais e listagem de quem está assistindo agora (Admins ou clientes identificados pelo Código de Ativação e Nome).
+- Tela 2 (Códigos de Ativação): Gestão de clientes (criar, editar e desativar códigos de 6 dígitos). Possui botão "Gerar" para preencher códigos automáticos e botão "Limpar Dispositivos" para resetar as conexões ativas.
+- Tela 3 (CRUD de Catálogo): Gestão ativa de canais/vídeos, permitindo ordenar, cadastrar ou desativar temporariamente scrapers.
 
 4. Capacitor & Distribuição Nativa
 O app frontend (apps/app-front) foi estruturado em Vite + React de modo que sua build estática (pasta dist) seja 100% compatível com o Capacitor para empacotar o app como APK para Android TV/Fire Stick.
