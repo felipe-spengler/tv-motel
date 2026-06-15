@@ -1,5 +1,5 @@
-import { PrismaClient } from './client';
-import bcrypt from 'bcryptjs';
+const { PrismaClient } = require('./client');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
@@ -79,7 +79,7 @@ async function main() {
       title: 'Jovem Pan News Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'uf8n4zM8Rpw', // ID do live stream do YouTube (exemplo, atualizado dinamicamente no front)
+      externalId: 'uf8n4zM8Rpw',
       thumbnailUrl: 'https://img.youtube.com/vi/uf8n4zM8Rpw/maxresdefault.jpg',
       orderPriority: 10,
     },
@@ -87,7 +87,7 @@ async function main() {
       title: 'CNN Brasil Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'r53mrs3r3b4', // Exemplo de ID do YouTube
+      externalId: 'r53mrs3r3b4',
       thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
       orderPriority: 9,
     },
@@ -95,7 +95,7 @@ async function main() {
       title: 'Pluto TV Filmes Ação',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://images.pluto.tv/channels/5efbe41cb914900007b7c2cc/featuredImage.jpg', // ID de canal FAST
+      externalId: 'https://images.pluto.tv/channels/5efbe41cb914900007b7c2cc/featuredImage.jpg',
       thumbnailUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400',
       orderPriority: 5,
     },
@@ -103,7 +103,7 @@ async function main() {
       title: 'Vídeo Adulto Teste (XVideos)',
       category: 'ADULT_CONTENT',
       sourceType: 'SCRAPER_XVIDEOS',
-      externalId: 'video.ubdkild43ee/mulher_gostosa_massagem_relaxante', // Slug fictício ou real para teste
+      externalId: 'video.ubdkild43ee/mulher_gostosa_massagem_relaxante',
       thumbnailUrl: 'https://images.unsplash.com/photo-1598128558393-70ff21433be0?q=80&w=400',
       isActive: true,
       orderPriority: 1,
@@ -112,7 +112,7 @@ async function main() {
       title: 'Chaturbate - Cams Recomendadas',
       category: 'LIVE_CAMS',
       sourceType: 'IFRAME_CAM_AFFILIATE',
-      externalId: 'https://chaturbate.com/in/?track=default&tour=T10e&campaign=tvmotel', // Link com tracker de afiliado
+      externalId: 'https://chaturbate.com/in/?track=default&tour=T10e&campaign=tvmotel',
       thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400',
       orderPriority: 2,
     }
@@ -125,7 +125,6 @@ async function main() {
 
     if (!existing) {
       await prisma.catalogChannel.create({
-        // @ts-ignore
         data: channel
       });
       console.log('Channel created:', channel.title);

@@ -30,6 +30,6 @@
     "typescript": "^5.4.5"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node prisma/seed.cjs"
   }
 }
