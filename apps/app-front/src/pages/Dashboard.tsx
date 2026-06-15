@@ -272,24 +272,53 @@ export default function Dashboard() {
 
         {/* XVideos Search Bar for Adult Tab */}
         {!loading && !error && activeTab === 'adult' && (
-          <div className="mb-8 max-w-lg mx-auto bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
-            <Search className="w-5 h-5 text-stone-500 ml-2" />
-            <input
-              type="text"
-              placeholder="Buscar no XVideos (ex: massagem)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSearch();
-              }}
-              className="bg-transparent border-0 flex-1 px-2 py-2 text-stone-100 placeholder-stone-600 focus:outline-none text-sm"
-            />
-            <button
-              onClick={handleSearch}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-all focus:outline-none"
-            >
-              Buscar
-            </button>
+          <div className="mb-8 max-w-lg mx-auto flex flex-col gap-3">
+            <div className="bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
+              <Search className="w-5 h-5 text-stone-500 ml-2" />
+              <input
+                type="text"
+                placeholder="Buscar no XVideos (ex: massagem)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSearch();
+                }}
+                className="bg-transparent border-0 flex-1 px-2 py-2 text-stone-100 placeholder-stone-600 focus:outline-none text-sm"
+              />
+              <button
+                onClick={handleSearch}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-all focus:outline-none"
+              >
+                Buscar
+              </button>
+            </div>
+            
+            {/* Category pills for quick tags */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[
+                { label: '🔥 Geral', tag: '' },
+                { label: '💆 Massagem', tag: 'massagem' },
+                { label: '🇧🇷 Amador', tag: 'amador nacional' },
+                { label: '💑 Casal', tag: 'casal' },
+                { label: '💋 Oral', tag: 'boquete' },
+                { label: '🍑 Anal', tag: 'anal' }
+              ].map(pill => (
+                <button
+                  key={pill.label}
+                  onClick={() => {
+                    setSearchQuery(pill.tag);
+                    fetchXVideos(pill.tag);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    searchQuery === pill.tag
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/10'
+                      : 'bg-stone-900/40 text-stone-400 border-stone-800 hover:text-white hover:border-stone-700'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

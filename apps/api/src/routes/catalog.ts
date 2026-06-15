@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { prisma } from '../utils/prisma.js';
 import { redis } from '../utils/redis.js';
 import { ScraperService } from '../services/scraper.service.js';
+import axios from 'axios';
 
 export async function catalogRoutes(server: FastifyInstance) {
   // Hook de autenticação para todas as rotas de catálogo
@@ -55,8 +56,15 @@ export async function catalogRoutes(server: FastifyInstance) {
         return reply.code(404).send({ error: 'Conteúdo não encontrado ou inativo.' });
       }
 
-      // Se for canal FAST direto ou afiliado, não precisa rodar Scraper, retorna a própria URL configurada no externalId
-      if (channel.sourceType === 'M3U8_FAST' || channel.sourceType === 'IFRAME_CAM_AFFILIATE') {
+      // Se for canal FAST direto, roteia através do proxy de CORS local para não bloquear na Smart TV/Navegador
+      if (channel.sourceType === 'M3U8_FAST') {
+        return reply.send({ 
+          url: `/api/v1/catalog/proxy?url=${encodeURIComponent(channel.externalId)}`, 
+          headers: {} 
+        });
+      }
+
+      if (channel.sourceType === 'IFRAME_CAM_AFFILIATE') {
         return reply.send({ url: channel.externalId, headers: {} });
       }
 
@@ -152,6 +160,55 @@ export async function catalogRoutes(server: FastifyInstance) {
     } catch (err: any) {
       server.log.error(err);
       return reply.code(500).send({ error: 'Erro ao resolver vídeo do XVideos' });
+    }
+  });
+
+  // GET /v1/catalog/proxy - Proxy de CORS para canais FAST/M3U8
+  server.get('/proxy', async (request, reply) => {
+    const { url } = request.query as { url: string };
+    if (!url) {
+      return reply.code(400).send({ error: 'O parâmetro url é obrigatório.' });
+    }
+
+    try {
+      const { data, headers } = await axios.get(url, {
+        responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+        timeout: 10000
+      });
+
+      let responseData = data;
+      const rawContentType = headers['content-type'];
+      const contentType = typeof rawContentType === 'string' ? rawContentType : 'application/x-mpegURL';
+
+      if (contentType.includes('mpegurl') || contentType.includes('mpegURL') || url.includes('.m3u8')) {
+        const text = data.toString('utf8');
+        const parsedUrl = new URL(url);
+        const baseUrl = parsedUrl.origin + parsedUrl.pathname.substring(0, parsedUrl.pathname.lastIndexOf('/') + 1);
+
+        const lines = text.split('\n');
+        const rewrittenLines = lines.map((line: string) => {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('http')) {
+            if (trimmed.startsWith('/')) {
+              return parsedUrl.origin + trimmed;
+            } else {
+              return baseUrl + trimmed;
+            }
+          }
+          return line;
+        });
+        responseData = Buffer.from(rewrittenLines.join('\n'));
+      }
+
+      reply.header('Access-Control-Allow-Origin', '*');
+      reply.header('Content-Type', contentType);
+      return reply.send(responseData);
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(502).send({ error: 'Erro ao fazer proxy da transmissão.' });
     }
   });
 }

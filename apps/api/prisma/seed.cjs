@@ -132,15 +132,6 @@ async function main() {
       orderPriority: 4,
     },
     {
-      title: 'Vídeo Adulto Teste (XVideos)',
-      category: 'ADULT_CONTENT',
-      sourceType: 'SCRAPER_XVIDEOS',
-      externalId: 'video-11440176/test_video',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1598128558393-70ff21433be0?q=80&w=400',
-      isActive: true,
-      orderPriority: 1,
-    },
-    {
       title: 'Chaturbate - Cams Recomendadas',
       category: 'LIVE_CAMS',
       sourceType: 'IFRAME_CAM_AFFILIATE',

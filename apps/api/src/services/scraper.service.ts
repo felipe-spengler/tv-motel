@@ -76,6 +76,16 @@ export class ScraperService {
         const thumb = $elem.find('.thumb img').attr('data-src') || $elem.find('.thumb img').attr('src');
 
         if (path && title) {
+          // Filtrar: Apenas vídeos com 5 minutos ou mais
+          if (duration) {
+            // Correspondência de padrão de minuto (ex: "5 min", "18 min", "5 minutos")
+            const minMatch = duration.match(/(\d+)\s*(min|m|minuto|minute)/i);
+            if (minMatch) {
+              const minutes = parseInt(minMatch[1], 10);
+              if (minutes < 5) return; // ignora vídeos com menos de 5 min
+            }
+          }
+
           videos.push({
             id: path.replace(/^\//, ''), // remove leading slash
             title: title.trim(),
