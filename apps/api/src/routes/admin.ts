@@ -28,6 +28,7 @@ export async function adminRoutes(server: FastifyInstance) {
   server.get('/metrics', async (request, reply) => {
     try {
       const totalUsers = await prisma.user.count();
+      const totalCodes = await prisma.activationCode.count();
       const activeSessionsCount = await prisma.userSession.count();
       
       const activeSessions = await prisma.userSession.findMany({
@@ -36,6 +37,12 @@ export async function adminRoutes(server: FastifyInstance) {
             select: {
               email: true,
               role: true
+            }
+          },
+          activationCode: {
+            select: {
+              code: true,
+              clientName: true
             }
           }
         },
@@ -46,6 +53,7 @@ export async function adminRoutes(server: FastifyInstance) {
 
       return reply.send({
         totalUsers,
+        totalCodes,
         activeSessionsCount,
         activeSessions
       });
@@ -179,6 +187,148 @@ export async function adminRoutes(server: FastifyInstance) {
     } catch (err: any) {
       server.log.error(err);
       return reply.code(500).send({ error: 'Erro ao deletar canal.' });
+    }
+  });
+
+  // GESTÃO DE CÓDIGOS DE ATIVAÇÃO
+
+  // GET /v1/admin/codes - Listar todos os códigos
+  server.get('/codes', async (request, reply) => {
+    try {
+      const codes = await prisma.activationCode.findMany({
+        include: {
+          _count: {
+            select: { sessions: true }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      return reply.send(codes);
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao buscar códigos de ativação.' });
+    }
+  });
+
+  interface CodeCreateBody {
+    clientName: string;
+    maxDevices: number;
+    expiresAt: string;
+    code?: string;
+  }
+
+  // POST /v1/admin/codes - Criar código de ativação
+  server.post('/codes', async (request, reply) => {
+    const { clientName, maxDevices, expiresAt, code: customCode } = request.body as CodeCreateBody;
+
+    if (!clientName || !maxDevices || !expiresAt) {
+      return reply.code(400).send({ error: 'Nome do cliente, limite de dispositivos e data de expiração são obrigatórios.' });
+    }
+
+    try {
+      let codeStr = customCode;
+      if (!codeStr) {
+        // Gerar código único de 6 dígitos
+        let attempts = 0;
+        while (attempts < 10) {
+          const candidate = Math.floor(100000 + Math.random() * 900000).toString();
+          const existing = await prisma.activationCode.findUnique({ where: { code: candidate } });
+          if (!existing) {
+            codeStr = candidate;
+            break;
+          }
+          attempts++;
+        }
+      }
+
+      if (!codeStr) {
+        return reply.code(500).send({ error: 'Não foi possível gerar um código numérico único automaticamente.' });
+      }
+
+      const newCode = await prisma.activationCode.create({
+        data: {
+          code: codeStr,
+          clientName,
+          maxDevices: Number(maxDevices),
+          expiresAt: new Date(expiresAt),
+          isActive: true
+        }
+      });
+
+      return reply.code(211).send(newCode);
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao criar código de ativação.' });
+    }
+  });
+
+  interface CodeUpdateBody {
+    clientName?: string;
+    maxDevices?: number;
+    expiresAt?: string;
+    isActive?: boolean;
+  }
+
+  // PUT /v1/admin/codes/:id - Atualizar código de ativação
+  server.put('/codes/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as CodeUpdateBody;
+
+    try {
+      const updateData: any = {};
+      if (body.clientName !== undefined) updateData.clientName = body.clientName;
+      if (body.maxDevices !== undefined) updateData.maxDevices = Number(body.maxDevices);
+      if (body.expiresAt !== undefined) updateData.expiresAt = new Date(body.expiresAt);
+      if (body.isActive !== undefined) updateData.isActive = body.isActive;
+
+      const updated = await prisma.activationCode.update({
+        where: { id },
+        data: updateData
+      });
+
+      // Se desativado, derrubar sessões
+      if (body.isActive === false) {
+        await prisma.userSession.deleteMany({
+          where: { activationCodeId: id }
+        });
+      }
+
+      return reply.send(updated);
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao atualizar código.' });
+    }
+  });
+
+  // DELETE /v1/admin/codes/:id - Excluir código
+  server.delete('/codes/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      await prisma.activationCode.delete({
+        where: { id }
+      });
+      return reply.send({ message: 'Código de ativação removido com sucesso.' });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao excluir código.' });
+    }
+  });
+
+  // POST /v1/admin/codes/:id/clear - Limpar dispositivos conectados
+  server.post('/codes/:id/clear', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      await prisma.userSession.deleteMany({
+        where: { activationCodeId: id }
+      });
+      return reply.send({ message: 'Todos os dispositivos conectados foram deslogados com sucesso.' });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao desconectar dispositivos vinculados.' });
     }
   });
 }

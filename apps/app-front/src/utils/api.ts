@@ -2,15 +2,17 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/v1';
 
 export interface UserInfo {
   id: string;
-  email: string;
-  role: 'USER' | 'ADMIN';
+  code: string;
+  clientName: string;
+  maxDevices: number;
   plan: 'FREE' | 'PREMIUM';
 }
 
 export interface LoginResponse {
   token: string;
   refreshToken: string;
-  user: UserInfo;
+  clientName: string;
+  user?: UserInfo; // Para compatibilidade
 }
 
 export const apiClient = {

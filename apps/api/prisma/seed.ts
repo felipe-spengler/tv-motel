@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -54,7 +54,26 @@ async function main() {
     console.log('Test user created:', user.email);
   }
 
-  // 3. Criar Canais Padrão no Catálogo
+  // 3. Criar Código de Ativação de Teste (794613)
+  const testCode = '794613';
+  const existingCode = await prisma.activationCode.findUnique({
+    where: { code: testCode }
+  });
+
+  if (!existingCode) {
+    await prisma.activationCode.create({
+      data: {
+        code: testCode,
+        clientName: 'Administrador (Teste)',
+        maxDevices: 1,
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Expira em 1 ano
+        isActive: true
+      }
+    });
+    console.log('Test activation code created:', testCode);
+  }
+
+  // 4. Criar Canais Padrão no Catálogo
   const channels = [
     {
       title: 'Jovem Pan News Ao Vivo',

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient, UserInfo } from '../utils/api.js';
 import { 
   LogOut, Users, Activity, Plus, Edit2, Trash2, CheckCircle2, XCircle, 
-  Settings, AlertCircle, Save, X
+  Settings, AlertCircle, Save, X, KeyRound, RefreshCw, Smartphone
 } from 'lucide-react';
 
 interface Channel {
@@ -22,10 +22,14 @@ interface ActiveSession {
   deviceType: string;
   lastActivity: string;
   ipAddress: string | null;
-  user: {
+  user?: {
     email: string;
     role: string;
-  }
+  } | null;
+  activationCode?: {
+    code: string;
+    clientName: string;
+  } | null;
 }
 
 interface UserListItem {
@@ -40,16 +44,30 @@ interface UserListItem {
   } | null;
 }
 
+interface ActivationCode {
+  id: string;
+  code: string;
+  clientName: string;
+  maxDevices: number;
+  expiresAt: string;
+  isActive: boolean;
+  createdAt: string;
+  _count: {
+    sessions: number;
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [adminUser, setAdminUser] = useState<UserInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'metrics' | 'catalog' | 'users'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'catalog' | 'users' | 'codes'>('metrics');
   
   // States de Dados
-  const [metrics, setMetrics] = useState<{ totalUsers: number, activeSessionsCount: number } | null>(null);
+  const [metrics, setMetrics] = useState<{ totalUsers: number, totalCodes: number, activeSessionsCount: number } | null>(null);
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [codes, setCodes] = useState<ActivationCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -63,6 +81,14 @@ export default function Dashboard() {
   const [formThumbnailUrl, setFormThumbnailUrl] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [formOrderPriority, setFormOrderPriority] = useState(0);
+
+  // States do Form/Modal de Códigos
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+  const [editingCode, setEditingCode] = useState<ActivationCode | null>(null);
+  const [codeClientName, setCodeClientName] = useState('');
+  const [codeMaxDevices, setCodeMaxDevices] = useState(10);
+  const [codeExpiresAt, setCodeExpiresAt] = useState('');
+  const [codeCustomCode, setCodeCustomCode] = useState('');
 
   useEffect(() => {
     const user = apiClient.getUser();
@@ -78,20 +104,22 @@ export default function Dashboard() {
     setLoading(true);
     setError('');
     try {
-      // Carregar todas as informações do painel paralelamente
-      const [metricsData, usersData, channelsData] = await Promise.all([
+      const [metricsData, usersData, channelsData, codesData] = await Promise.all([
         apiClient.request('/admin/metrics'),
         apiClient.request('/admin/users'),
-        apiClient.request('/admin/channels')
+        apiClient.request('/admin/channels'),
+        apiClient.request('/admin/codes')
       ]);
 
       setMetrics({
         totalUsers: metricsData.totalUsers,
+        totalCodes: metricsData.totalCodes || 0,
         activeSessionsCount: metricsData.activeSessionsCount
       });
       setSessions(metricsData.activeSessions || []);
       setUsers(usersData || []);
       setChannels(channelsData || []);
+      setCodes(codesData || []);
     } catch (err: any) {
       setError(err.message || 'Erro ao consultar APIs do backend.');
     } finally {
@@ -104,7 +132,7 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-  // Alternar Status do Usuário (Suspender/Ativar)
+  // Alternar Status do Usuário
   const toggleUserStatus = async (userId: string, currentStatus: 'ACTIVE' | 'SUSPENDED') => {
     const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
@@ -112,18 +140,16 @@ export default function Dashboard() {
         method: 'PUT',
         body: JSON.stringify({ status: newStatus })
       });
-      // Atualizar lista local
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus } : u));
-      // Atualizar sessões (caso suspenso, cai do ar)
       if (newStatus === 'SUSPENDED') {
-        setSessions(prev => prev.filter(s => s.user.email !== users.find(u => u.id === userId)?.email));
+        setSessions(prev => prev.filter(s => s.user?.email !== users.find(u => u.id === userId)?.email));
       }
     } catch (err: any) {
       alert(`Erro ao alterar status: ${err.message}`);
     }
   };
 
-  // Toggle rápido de ativação do canal (para desativar scraper de imediato)
+  // Alternar Status do Canal
   const toggleChannelActive = async (channel: Channel) => {
     const nextActive = !channel.isActive;
     try {
@@ -153,7 +179,7 @@ export default function Dashboard() {
     }
   };
 
-  // Abrir Modal para Criação ou Edição
+  // Abrir Modal de Canais
   const openChannelModal = (channel: Channel | null = null) => {
     if (channel) {
       setEditingChannel(channel);
@@ -177,7 +203,7 @@ export default function Dashboard() {
     setIsModalOpen(true);
   };
 
-  // Submissão do CRUD de Canais
+  // Salvar Canal
   const handleSaveChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -192,14 +218,12 @@ export default function Dashboard() {
 
     try {
       if (editingChannel) {
-        // Atualizar
         const updated = await apiClient.request(`/admin/channels/${editingChannel.id}`, {
           method: 'PUT',
           body: JSON.stringify(payload)
         });
         setChannels(prev => prev.map(c => c.id === editingChannel.id ? updated : c));
       } else {
-        // Criar novo
         const created = await apiClient.request('/admin/channels', {
           method: 'POST',
           body: JSON.stringify(payload)
@@ -209,6 +233,106 @@ export default function Dashboard() {
       setIsModalOpen(false);
     } catch (err: any) {
       alert(`Erro ao salvar canal: ${err.message}`);
+    }
+  };
+
+  // CRUD CÓDIGOS DE ATIVAÇÃO
+
+  const openCodeModal = (codeItem: ActivationCode | null = null) => {
+    if (codeItem) {
+      setEditingCode(codeItem);
+      setCodeClientName(codeItem.clientName);
+      setCodeMaxDevices(codeItem.maxDevices);
+      setCodeExpiresAt(new Date(codeItem.expiresAt).toISOString().split('T')[0]);
+      setCodeCustomCode(codeItem.code);
+    } else {
+      setEditingCode(null);
+      setCodeClientName('');
+      setCodeMaxDevices(10);
+      // Data padrão de expiração: 30 dias a partir de hoje
+      const future = new Date();
+      future.setDate(future.getDate() + 30);
+      setCodeExpiresAt(future.toISOString().split('T')[0]);
+      setCodeCustomCode('');
+    }
+    setIsCodeModalOpen(true);
+  };
+
+  const handleGenerateRandomCode = () => {
+    const randomVal = Math.floor(100000 + Math.random() * 900000).toString();
+    setCodeCustomCode(randomVal);
+  };
+
+  const handleSaveCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      clientName: codeClientName,
+      maxDevices: Number(codeMaxDevices),
+      expiresAt: new Date(codeExpiresAt).toISOString(),
+      code: codeCustomCode || undefined
+    };
+
+    try {
+      if (editingCode) {
+        const updated = await apiClient.request(`/admin/codes/${editingCode.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        setCodes(prev => prev.map(c => c.id === editingCode.id ? { ...updated, _count: editingCode._count } : c));
+      } else {
+        const created = await apiClient.request('/admin/codes', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        setCodes(prev => [{ ...created, _count: { sessions: 0 } }, ...prev]);
+      }
+      setIsCodeModalOpen(false);
+      loadData(); // Recarregar contagens
+    } catch (err: any) {
+      alert(`Erro ao salvar código de ativação: ${err.message}`);
+    }
+  };
+
+  const toggleCodeActiveStatus = async (codeItem: ActivationCode) => {
+    const nextActive = !codeItem.isActive;
+    try {
+      await apiClient.request(`/admin/codes/${codeItem.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive: nextActive })
+      });
+      setCodes(prev => prev.map(c => c.id === codeItem.id ? { ...c, isActive: nextActive } : c));
+      if (!nextActive) {
+        // Remover sessões da lista se o código foi suspenso
+        setSessions(prev => prev.filter(s => s.activationCode?.code !== codeItem.code));
+      }
+    } catch (err: any) {
+      alert(`Erro ao alterar status: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCode = async (codeId: string) => {
+    if (!confirm('Deseja realmente remover este código? Todos os dispositivos ativos dele perderão o acesso.')) return;
+    try {
+      await apiClient.request(`/admin/codes/${codeId}`, {
+        method: 'DELETE'
+      });
+      setCodes(prev => prev.filter(c => c.id !== codeId));
+      loadData();
+    } catch (err: any) {
+      alert(`Erro ao excluir código: ${err.message}`);
+    }
+  };
+
+  const handleClearSessions = async (codeItem: ActivationCode) => {
+    if (!confirm(`Deseja limpar todos os dispositivos conectados do código ${codeItem.code}?`)) return;
+    try {
+      await apiClient.request(`/admin/codes/${codeItem.id}/clear`, {
+        method: 'POST'
+      });
+      alert('Todos os dispositivos vinculados foram desconectados.');
+      loadData();
+    } catch (err: any) {
+      alert(`Erro ao limpar dispositivos: ${err.message}`);
     }
   };
 
@@ -235,7 +359,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Painel Administrativo <span className="text-xs bg-stone-850 text-stone-400 px-2 py-1 rounded border border-stone-800">B2C</span>
             </h1>
-            <p className="text-xs text-stone-450 mt-0.5">Gestão geral de métricas e grade da plataforma</p>
+            <p className="text-xs text-stone-450 mt-0.5">Gestão geral de métricas, grade e códigos do sistema</p>
           </div>
         </div>
 
@@ -267,6 +391,14 @@ export default function Dashboard() {
             Métricas & Sessões
           </button>
           <button
+            onClick={() => setActiveTab('codes')}
+            className={`py-4 text-sm font-semibold border-b-2 transition-all focus:outline-none ${
+              activeTab === 'codes' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
+            }`}
+          >
+            Códigos de Ativação
+          </button>
+          <button
             onClick={() => setActiveTab('catalog')}
             className={`py-4 text-sm font-semibold border-b-2 transition-all focus:outline-none ${
               activeTab === 'catalog' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
@@ -280,7 +412,7 @@ export default function Dashboard() {
               activeTab === 'users' ? 'border-primary text-primary' : 'border-transparent text-stone-400 hover:text-stone-250'
             }`}
           >
-            Usuários Cadastrados
+            Administradores
           </button>
         </nav>
       </div>
@@ -307,14 +439,14 @@ export default function Dashboard() {
             {activeTab === 'metrics' && (
               <div className="space-y-8">
                 {/* Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-card border border-stone-850 p-6 rounded-2xl flex items-center justify-between">
                     <div>
-                      <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Total de Contas</h3>
-                      <p className="text-4xl font-extrabold text-white">{metrics?.totalUsers}</p>
+                      <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Códigos de Ativação</h3>
+                      <p className="text-4xl font-extrabold text-white">{metrics?.totalCodes}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                      <Users className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <KeyRound className="w-6 h-6 text-primary" />
                     </div>
                   </div>
 
@@ -325,6 +457,16 @@ export default function Dashboard() {
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
                       <Activity className="w-6 h-6 text-green-500" />
+                    </div>
+                  </div>
+
+                  <div className="bg-card border border-stone-850 p-6 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <h3 className="text-stone-400 font-semibold text-xs uppercase tracking-wider mb-1">Contas Admins</h3>
+                      <p className="text-4xl font-extrabold text-white">{metrics?.totalUsers}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-indigo-400" />
                     </div>
                   </div>
                 </div>
@@ -344,7 +486,7 @@ export default function Dashboard() {
                       <table className="w-full text-left text-sm">
                         <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
                           <tr>
-                            <th className="px-6 py-3.5">E-mail do Usuário</th>
+                            <th className="px-6 py-3.5">Identificador / Cliente</th>
                             <th className="px-6 py-3.5">Dispositivo</th>
                             <th className="px-6 py-3.5">Endereço IP</th>
                             <th className="px-6 py-3.5">Última Atividade</th>
@@ -353,7 +495,13 @@ export default function Dashboard() {
                         <tbody className="divide-y divide-stone-850">
                           {sessions.map(sess => (
                             <tr key={sess.id} className="hover:bg-stone-900/20 text-stone-300">
-                              <td className="px-6 py-4 font-medium text-white">{sess.user.email}</td>
+                              <td className="px-6 py-4 font-medium text-white">
+                                {sess.userId ? (
+                                  <span className="text-indigo-400">[Admin] {sess.user?.email}</span>
+                                ) : (
+                                  <span>[Código: {sess.activationCode?.code}] {sess.activationCode?.clientName}</span>
+                                )}
+                              </td>
                               <td className="px-6 py-4">
                                 <span className="bg-stone-850 border border-stone-800 text-stone-300 text-xs px-2.5 py-1 rounded-lg">
                                   {sess.deviceType}
@@ -371,11 +519,98 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* VIEW 2: USERS */}
+            {/* VIEW 2: ACTIVATION CODES */}
+            {activeTab === 'codes' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white tracking-wide">Códigos de Ativação</h2>
+                    <p className="text-xs text-stone-450 mt-0.5">Gerencie os acessos temporários ou mensais dos clientes e seus limites de dispositivos</p>
+                  </div>
+                  <button
+                    onClick={() => openCodeModal(null)}
+                    className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-primary/20 transition-all focus:outline-none"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Adicionar Código</span>
+                  </button>
+                </div>
+
+                <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
+                        <tr>
+                          <th className="px-6 py-3.5">Código</th>
+                          <th className="px-6 py-3.5">Cliente</th>
+                          <th className="px-6 py-3.5">Dispositivos Ativos</th>
+                          <th className="px-6 py-3.5">Vencimento</th>
+                          <th className="px-6 py-3.5">Status</th>
+                          <th className="px-6 py-3.5 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-850">
+                        {codes.map(c => {
+                          const isExpired = new Date(c.expiresAt) < new Date();
+                          return (
+                            <tr key={c.id} className="hover:bg-stone-900/20 text-stone-300">
+                              <td className="px-6 py-4 font-mono text-lg font-bold text-primary">{c.code}</td>
+                              <td className="px-6 py-4 font-medium text-white">{c.clientName}</td>
+                              <td className="px-6 py-4">
+                                <span className="bg-stone-850 px-2 py-1 border border-stone-800 rounded-lg text-xs font-semibold">
+                                  {c._count.sessions} / {c.maxDevices}
+                                </span>
+                              </td>
+                              <td className={`px-6 py-4 ${isExpired ? 'text-red-400 font-semibold' : 'text-stone-400'}`}>
+                                {new Date(c.expiresAt).toLocaleDateString()} {isExpired && '(Expirado)'}
+                              </td>
+                              <td className="px-6 py-4">
+                                <button
+                                  onClick={() => toggleCodeActiveStatus(c)}
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    c.isActive && !isExpired ? 'bg-green-950/30 text-green-400' : 'bg-red-950/30 text-red-400'
+                                  }`}
+                                >
+                                  {c.isActive && !isExpired ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                                  {c.isActive && !isExpired ? 'Ativo' : 'Inativo'}
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleClearSessions(c)}
+                                  title="Desconectar todos os dispositivos"
+                                  className="text-stone-400 hover:text-yellow-400 p-2 rounded-lg border border-transparent hover:border-stone-800 transition-all focus:outline-none"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => openCodeModal(c)}
+                                  className="text-stone-400 hover:text-white p-2 rounded-lg border border-transparent hover:border-stone-800 transition-all focus:outline-none"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCode(c.id)}
+                                  className="text-stone-400 hover:text-red-500 p-2 rounded-lg border border-transparent hover:border-stone-800 transition-all focus:outline-none"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VIEW 3: USERS */}
             {activeTab === 'users' && (
               <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-stone-850 flex justify-between bg-stone-900/30">
-                  <h3 className="font-bold text-white text-base">Gestão de Usuários e Controle de Acesso</h3>
+                  <h3 className="font-bold text-white text-base">Administradores do Sistema</h3>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -383,7 +618,7 @@ export default function Dashboard() {
                     <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
                       <tr>
                         <th className="px-6 py-3.5">Usuário</th>
-                        <th className="px-6 py-3.5">Tipo de Assinatura</th>
+                        <th className="px-6 py-3.5">Função</th>
                         <th className="px-6 py-3.5">Data de Criação</th>
                         <th className="px-6 py-3.5">Status da Conta</th>
                         <th className="px-6 py-3.5 text-right">Ações</th>
@@ -394,15 +629,10 @@ export default function Dashboard() {
                         <tr key={u.id} className="hover:bg-stone-900/20 text-stone-300">
                           <td className="px-6 py-4 flex flex-col">
                             <span className="font-medium text-white">{u.email}</span>
-                            <span className="text-xs text-stone-500 uppercase font-bold mt-0.5">{u.role}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`text-xs px-2.5 py-1 rounded-lg font-bold border ${
-                              u.subscription?.planType === 'PREMIUM' 
-                                ? 'bg-yellow-950/20 text-yellow-400 border-yellow-850/50' 
-                                : 'bg-stone-850 text-stone-400 border-stone-800'
-                            }`}>
-                              {u.subscription?.planType || 'FREE'}
+                            <span className="bg-stone-850 border border-stone-800 text-stone-300 text-xs px-2.5 py-1 rounded-lg">
+                              {u.role}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-stone-400">{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -436,7 +666,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* VIEW 3: CATALOG CRUD */}
+            {/* VIEW 4: CATALOG CRUD */}
             {activeTab === 'catalog' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -449,20 +679,19 @@ export default function Dashboard() {
                     className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-primary/20 transition-all focus:outline-none"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Cadastrar Novo Canal</span>
+                    <span>Criar Canal</span>
                   </button>
                 </div>
 
-                {/* Channels Grid / Table */}
                 <div className="bg-card border border-stone-850 rounded-2xl overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-stone-950 text-stone-400 font-semibold border-b border-stone-850">
                         <tr>
-                          <th className="px-6 py-3.5">Título / Miniatura</th>
+                          <th className="px-6 py-3.5">Canal</th>
                           <th className="px-6 py-3.5">Categoria</th>
-                          <th className="px-6 py-3.5">Fonte / Link</th>
-                          <th className="px-6 py-3.5">Prioridade</th>
+                          <th className="px-6 py-3.5">Origem da Mídia</th>
+                          <th className="px-6 py-3.5">Ordenação</th>
                           <th className="px-6 py-3.5">Status</th>
                           <th className="px-6 py-3.5 text-right">Ações</th>
                         </tr>
@@ -470,57 +699,44 @@ export default function Dashboard() {
                       <tbody className="divide-y divide-stone-850">
                         {channels.map(channel => (
                           <tr key={channel.id} className="hover:bg-stone-900/20 text-stone-300">
-                            <td className="px-6 py-4 flex items-center gap-4">
+                            <td className="px-6 py-4 flex items-center gap-3">
                               <img
                                 src={channel.thumbnailUrl}
                                 alt={channel.title}
-                                className="w-14 aspect-video rounded-lg object-cover bg-stone-950 border border-stone-800"
+                                className="w-12 h-8 object-cover rounded-lg border border-stone-800"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400';
                                 }}
                               />
-                              <span className="font-semibold text-white truncate max-w-xs">{channel.title}</span>
+                              <span className="font-medium text-white">{channel.title}</span>
                             </td>
-                            <td className="px-6 py-4 uppercase font-bold text-xs text-stone-450 tracking-wide">
-                              {channel.category}
-                            </td>
-                            <td className="px-6 py-4 flex flex-col gap-1.5">
-                              {getSourceIcon(channel.sourceType)}
-                              <span className="text-xs text-stone-500 font-mono truncate max-w-[200px]" title={channel.externalId}>
-                                {channel.externalId}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 font-mono">{channel.orderPriority}</td>
+                            <td className="px-6 py-4 font-semibold text-stone-400">{channel.category}</td>
+                            <td className="px-6 py-4">{getSourceIcon(channel.sourceType)}</td>
+                            <td className="px-6 py-4 text-stone-450 font-mono">{channel.orderPriority}</td>
                             <td className="px-6 py-4">
                               <button
                                 onClick={() => toggleChannelActive(channel)}
-                                className={`text-xs px-2.5 py-1 rounded-lg border font-semibold ${
-                                  channel.isActive 
-                                    ? 'bg-green-950/20 text-green-400 border-green-900/30 hover:bg-green-900/10' 
-                                    : 'bg-red-950/20 text-red-400 border-red-900/30 hover:bg-red-900/10'
+                                className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                  channel.isActive ? 'bg-green-950/30 text-green-400' : 'bg-red-950/30 text-red-400'
                                 }`}
-                                title="Clique para alternar o status do canal"
                               >
-                                {channel.isActive ? 'Ativo (Online)' : 'Inativo (Offline)'}
+                                {channel.isActive ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                                {channel.isActive ? 'Ativo' : 'Inativo'}
                               </button>
                             </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => openChannelModal(channel)}
-                                  className="p-2 bg-stone-850 hover:bg-stone-800 border border-stone-800 rounded-lg text-stone-300 hover:text-white transition-all"
-                                  title="Editar Canal"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteChannel(channel.id)}
-                                  className="p-2 bg-red-950/20 hover:bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 transition-all"
-                                  title="Remover Canal"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                            <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => openChannelModal(channel)}
+                                className="text-stone-400 hover:text-white p-2 rounded-lg border border-transparent hover:border-stone-800 transition-all focus:outline-none"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteChannel(channel.id)}
+                                className="text-stone-400 hover:text-red-500 p-2 rounded-lg border border-transparent hover:border-stone-800 transition-all focus:outline-none"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -534,18 +750,15 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* CRUD MODAL */}
+      {/* MODAL CANAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card border border-stone-850 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-stone-850 flex items-center justify-between bg-stone-900/30">
-              <h3 className="font-bold text-white text-lg">
-                {editingChannel ? 'Editar Detalhes do Canal' : 'Cadastrar Novo Canal / Vídeo'}
+              <h3 className="font-bold text-white text-base">
+                {editingChannel ? 'Editar Canal do Catálogo' : 'Adicionar Novo Canal'}
               </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-stone-400 hover:text-white focus:outline-none"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-stone-500 hover:text-white transition-all">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -557,7 +770,7 @@ export default function Dashboard() {
                   type="text"
                   required
                   className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 placeholder-stone-600 focus:outline-none"
-                  placeholder="Ex: CNN Brasil Ao Vivo, Vídeo Pornô Amador, etc."
+                  placeholder="Ex: CNN Brasil Ao Vivo, Vídeo Amador, etc."
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                 />
@@ -664,6 +877,106 @@ export default function Dashboard() {
                 >
                   <Save className="w-4 h-4" />
                   <span>Salvar Canal</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CÓDIGO DE ATIVAÇÃO */}
+      {isCodeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-stone-850 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-stone-850 flex items-center justify-between bg-stone-900/30">
+              <h3 className="font-bold text-white text-base">
+                {editingCode ? 'Editar Código de Ativação' : 'Criar Código de Ativação'}
+              </h3>
+              <button onClick={() => setIsCodeModalOpen(false)} className="text-stone-500 hover:text-white transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCode} className="p-6 space-y-4">
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Código (6 Números)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    className="flex-1 bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 placeholder-stone-600 focus:outline-none font-mono"
+                    placeholder="Ex: 794613"
+                    value={codeCustomCode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setCodeCustomCode(val);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomCode}
+                    className="bg-stone-850 hover:bg-stone-850 border border-stone-800 text-stone-300 font-bold px-4 rounded-xl transition-all focus:outline-none text-xs flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Gerar</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Nome do Cliente</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 placeholder-stone-600 focus:outline-none"
+                  placeholder="Ex: Carlos (Dono do Motel Soft)"
+                  value={codeClientName}
+                  onChange={(e) => setCodeClientName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Limite de Dispositivos</label>
+                <select
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 focus:outline-none"
+                  value={codeMaxDevices}
+                  onChange={(e) => setCodeMaxDevices(Number(e.target.value))}
+                >
+                  <option value={1}>1 Dispositivo (Teste)</option>
+                  <option value={10}>10 Dispositivos</option>
+                  <option value={20}>20 Dispositivos</option>
+                  <option value={50}>50 Dispositivos</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-stone-300 text-xs font-semibold uppercase mb-1.5">Data de Vencimento</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full bg-stone-950 border border-stone-850 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl p-3 text-stone-200 focus:outline-none"
+                  value={codeExpiresAt}
+                  onChange={(e) => setCodeExpiresAt(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-stone-850">
+                <button
+                  type="button"
+                  onClick={() => setIsCodeModalOpen(false)}
+                  className="flex-1 bg-stone-850 hover:bg-stone-800 text-stone-300 font-bold py-3.5 rounded-xl border border-stone-800 transition-all text-center focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={codeCustomCode.length < 6}
+                  className="flex-1 bg-primary hover:bg-primary-hover text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 focus:outline-none disabled:opacity-40"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Salvar Código</span>
                 </button>
               </div>
             </form>

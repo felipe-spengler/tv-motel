@@ -139,8 +139,8 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex flex-col text-right">
-            <span className="text-xs font-semibold text-stone-500 uppercase">Usuário</span>
-            <span className="text-sm text-stone-300 font-medium">{user?.email}</span>
+            <span className="text-xs font-semibold text-stone-500 uppercase">Cliente / Dispositivo</span>
+            <span className="text-sm text-stone-300 font-medium">{user?.clientName || user?.code}</span>
           </div>
 
           <button

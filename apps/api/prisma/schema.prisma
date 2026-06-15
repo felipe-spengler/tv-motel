@@ -73,15 +73,31 @@ model Subscription {
 }
 
 model UserSession {
-  id           String     @id @default(uuid()) @db.Uuid
-  userId       String     @map("user_id") @db.Uuid
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceType   DeviceType @map("device_type")
-  refreshToken String     @unique @map("refresh_token") @db.VarChar(512)
-  lastActivity DateTime   @default(now()) @map("last_activity")
-  ipAddress    String?    @map("ip_address") @db.VarChar(45)
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String?         @map("user_id") @db.Uuid
+  user             User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activationCodeId String?         @map("activation_code_id") @db.Uuid
+  activationCode   ActivationCode? @relation(fields: [activationCodeId], references: [id], onDelete: Cascade)
+  deviceType       DeviceType      @map("device_type")
+  refreshToken     String          @unique @map("refresh_token") @db.VarChar(512)
+  lastActivity     DateTime        @default(now()) @map("last_activity")
+  ipAddress        String?         @map("ip_address") @db.VarChar(45)
 
   @@map("user_sessions")
+}
+
+model ActivationCode {
+  id         String        @id @default(uuid()) @db.Uuid
+  code       String        @unique @db.VarChar(6)
+  clientName String        @map("client_name")
+  maxDevices Int           @default(10) @map("max_devices")
+  expiresAt  DateTime      @map("expires_at")
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  sessions   UserSession[]
+
+  @@map("activation_codes")
 }
 
 model CatalogChannel {

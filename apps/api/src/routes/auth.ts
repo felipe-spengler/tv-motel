@@ -134,6 +134,81 @@ export async function authRoutes(server: FastifyInstance) {
     }
   });
 
+interface ActivateBody {
+  code: string;
+  deviceType: 'WEB_MOBILE' | 'WEB_DESKTOP' | 'ANDROID_TV' | 'FIRE_STICK';
+}
+
+  // POST /v1/auth/activate
+  server.post('/activate', async (request, reply) => {
+    const { code, deviceType } = request.body as ActivateBody;
+
+    if (!code || !deviceType) {
+      return reply.code(400).send({ error: 'Código e tipo de dispositivo são obrigatórios' });
+    }
+
+    try {
+      const activationCode = await prisma.activationCode.findUnique({
+        where: { code }
+      });
+
+      if (!activationCode) {
+        return reply.code(404).send({ error: 'Código de ativação não encontrado' });
+      }
+
+      if (!activationCode.isActive) {
+        return reply.code(403).send({ error: 'Este código de ativação está suspenso/inativo' });
+      }
+
+      if (activationCode.expiresAt < new Date()) {
+        return reply.code(403).send({ error: 'Este código de ativação está expirado' });
+      }
+
+      // Contar sessões ativas para este código
+      const activeSessionsCount = await prisma.userSession.count({
+        where: { activationCodeId: activationCode.id }
+      });
+
+      if (activeSessionsCount >= activationCode.maxDevices) {
+        return reply.code(403).send({ error: 'Limite de dispositivos atingido para este código' });
+      }
+
+      // Criar nova sessão do dispositivo
+      const refreshToken = crypto.randomBytes(40).toString('hex');
+      const ip = request.ip;
+
+      await prisma.userSession.create({
+        data: {
+          activationCodeId: activationCode.id,
+          deviceType,
+          refreshToken,
+          ipAddress: ip
+        }
+      });
+
+      // Gerar Token JWT com dados da ativação
+      const token = server.jwt.sign(
+        {
+          id: activationCode.id,
+          code: activationCode.code,
+          maxDevices: activationCode.maxDevices,
+          clientName: activationCode.clientName,
+          plan: activationCode.maxDevices >= 20 ? 'PREMIUM' : 'FREE'
+        },
+        { expiresIn: '1d' } // Expiração maior para dispositivos logados na TV
+      );
+
+      return reply.send({
+        token,
+        refreshToken,
+        clientName: activationCode.clientName
+      });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao validar código de ativação' });
+    }
+  });
+
   // POST /v1/auth/refresh
   server.post('/refresh', async (request, reply) => {
     const { refreshToken } = request.body as RefreshBody;
@@ -145,28 +220,63 @@ export async function authRoutes(server: FastifyInstance) {
     try {
       const session = await prisma.userSession.findUnique({
         where: { refreshToken },
-        include: { user: { include: { subscription: true } } },
+        include: {
+          user: { include: { subscription: true } },
+          activationCode: true
+        }
       });
 
-      if (!session || session.user.status === 'SUSPENDED') {
+      if (!session) {
         return reply.code(401).send({ error: 'Sessão inválida ou expirada' });
       }
 
-      // Atualizar a última atividade da sessão
-      await prisma.userSession.update({
-        where: { id: session.id },
-        data: { lastActivity: new Date() },
-      });
+      // Se for sessão de Admin (User)
+      if (session.userId) {
+        if (session.user?.status === 'SUSPENDED') {
+          return reply.code(401).send({ error: 'Conta de administrador suspensa' });
+        }
 
-      const planType = session.user.subscription?.planType || 'FREE';
+        await prisma.userSession.update({
+          where: { id: session.id },
+          data: { lastActivity: new Date() }
+        });
 
-      // Gerar novo JWT Token
-      const token = server.jwt.sign(
-        { id: session.user.id, email: session.user.email, role: session.user.role, plan: planType },
-        { expiresIn: '1h' }
-      );
+        const planType = session.user?.subscription?.planType || 'FREE';
+        const token = server.jwt.sign(
+          { id: session.user?.id, email: session.user?.email, role: session.user?.role, plan: planType },
+          { expiresIn: '1h' }
+        );
 
-      return reply.send({ token });
+        return reply.send({ token });
+      }
+
+      // Se for sessão de Dispositivo (ActivationCode)
+      if (session.activationCodeId) {
+        const code = session.activationCode;
+        if (!code || !code.isActive || code.expiresAt < new Date()) {
+          return reply.code(401).send({ error: 'Código de ativação suspenso ou expirado' });
+        }
+
+        await prisma.userSession.update({
+          where: { id: session.id },
+          data: { lastActivity: new Date() }
+        });
+
+        const token = server.jwt.sign(
+          {
+            id: code.id,
+            code: code.code,
+            maxDevices: code.maxDevices,
+            clientName: code.clientName,
+            plan: code.maxDevices >= 20 ? 'PREMIUM' : 'FREE'
+          },
+          { expiresIn: '1d' }
+        );
+
+        return reply.send({ token });
+      }
+
+      return reply.code(401).send({ error: 'Sessão inválida' });
     } catch (err: any) {
       server.log.error(err);
       return reply.code(500).send({ error: 'Erro ao renovar token de acesso' });
