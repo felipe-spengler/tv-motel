@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient, UserInfo } from '../utils/api.js';
 import { 
   LogOut, Users, Activity, Plus, Edit2, Trash2, CheckCircle2, XCircle, 
-  Settings, AlertCircle, Save, X, KeyRound, RefreshCw, Smartphone
+  Settings, AlertCircle, Save, X, KeyRound, RefreshCw
 } from 'lucide-react';
 
 interface Channel {
@@ -496,7 +496,7 @@ export default function Dashboard() {
                           {sessions.map(sess => (
                             <tr key={sess.id} className="hover:bg-stone-900/20 text-stone-300">
                               <td className="px-6 py-4 font-medium text-white">
-                                {sess.userId ? (
+                                {sess.user ? (
                                   <span className="text-indigo-400">[Admin] {sess.user?.email}</span>
                                 ) : (
                                   <span>[Código: {sess.activationCode?.code}] {sess.activationCode?.clientName}</span>
