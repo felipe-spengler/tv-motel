@@ -357,10 +357,6 @@ export default function Dashboard() {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90" />
-                      
-                      <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-lg border border-white/10 uppercase tracking-wider text-stone-300">
-                        {channel.sourceType.replace('_', ' ')}
-                      </span>
                     </div>
 
                     <div className="p-4">

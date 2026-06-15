@@ -92,44 +92,52 @@ async function main() {
       orderPriority: 9,
     },
     {
-      title: 'Pluto TV Cine Ação',
-      category: 'MOVIES',
+      title: 'Globo Ao Vivo',
+      category: 'NEWS',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://jmp2.uk/plu-5f120f41b7d403000783a6d6.m3u8',
-      thumbnailUrl: 'https://images.pluto.tv/channels/5f120f41b7d403000783a6d6/colorLogoPNG.png',
+      externalId: 'https://amg00716-globo-amg00716c1-tcl-br-9495.playouts.now.amagi.tv/playlist.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1598257006458-087169a1f08d?q=80&w=400',
       orderPriority: 8,
     },
     {
-      title: 'Pluto TV Cine Comédia',
+      title: 'Cazé TV (Esportes)',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://jmp2.uk/plu-5f12101f0b12f00007844c7c.m3u8',
-      thumbnailUrl: 'https://images.pluto.tv/channels/5f12101f0b12f00007844c7c/colorLogoPNG_1732662798298.png',
+      externalId: 'https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
       orderPriority: 7,
     },
     {
-      title: 'Pluto TV Cine Terror',
+      title: 'SBT Ao Vivo',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://jmp2.uk/plu-5f12111c9e6c2c00078ef3bb.m3u8',
-      thumbnailUrl: 'https://images.pluto.tv/channels/5f12111c9e6c2c00078ef3bb/colorLogoPNG.png',
+      externalId: 'https://video09.logicahost.com.br/sbtcuiaba/sbtcuiaba/playlist.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=400',
       orderPriority: 6,
     },
     {
-      title: 'Pluto TV Anime',
+      title: 'Record TV Ao Vivo',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://jmp2.uk/plu-5f12136385bccc00070142ed.m3u8',
-      thumbnailUrl: 'https://images.pluto.tv/channels/5f12136385bccc00070142ed/colorLogoPNG_1777595293242.png',
+      externalId: 'https://playplusspo-lh.akamaihd.net/i/pp_sp@350176/index_720_av-p.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400',
       orderPriority: 5,
     },
     {
-      title: 'Pluto TV Esportes',
+      title: 'RedeTV! Ao Vivo',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
-      externalId: 'https://jmp2.uk/plu-5f32d2db0af67400077f29c4.m3u8',
-      thumbnailUrl: 'https://images.pluto.tv/channels/5f32d2db0af67400077f29c4/colorLogoPNG_1780355759776.png',
+      externalId: 'https://hls.brasilstream.com.br/live/redetv/redetv/playlist.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=400',
       orderPriority: 4,
+    },
+    {
+      title: 'FIFA+ Ao Vivo',
+      category: 'MOVIES',
+      sourceType: 'M3U8_FAST',
+      externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
+      orderPriority: 3,
     },
     {
       title: 'Chaturbate - Cams Recomendadas',
@@ -142,17 +150,15 @@ async function main() {
     }
   ];
 
-  for (const channel of channels) {
-    const existing = await prisma.catalogChannel.findFirst({
-      where: { title: channel.title }
-    });
+  // Limpar catálogo existente para garantir atualização total dos links/ids
+  await prisma.catalogChannel.deleteMany({});
+  console.log('Cleared existing catalog channels.');
 
-    if (!existing) {
-      await prisma.catalogChannel.create({
-        data: channel
-      });
-      console.log('Channel created:', channel.title);
-    }
+  for (const channel of channels) {
+    await prisma.catalogChannel.create({
+      data: channel
+    });
+    console.log('Channel created:', channel.title);
   }
 
   console.log('Seeding completed successfully!');
