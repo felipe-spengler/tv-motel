@@ -64,7 +64,7 @@ async function bootstrap() {
           title: 'UOL Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UCE46S_7YgNGz9bSxsL3f0_A',
+          externalId: '@UOL',
           thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
           orderPriority: 9,
         },
@@ -80,7 +80,7 @@ async function bootstrap() {
           title: 'CazéTV Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UC_3M2U0YmZst7fS3_C4S7Cg',
+          externalId: '@CazeTV',
           thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
           orderPriority: 7,
         },
@@ -88,7 +88,7 @@ async function bootstrap() {
           title: 'Canal GOAT Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UC6G9NdfofOWeYrcnUOn0jYg',
+          externalId: '@CanalGoat',
           thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
           orderPriority: 6,
         },
@@ -106,9 +106,15 @@ async function bootstrap() {
       const hasUol = await prisma.catalogChannel.findFirst({
         where: { title: 'UOL Ao Vivo' }
       });
+      const hasOldYoutubeConfig = await prisma.catalogChannel.findFirst({
+        where: {
+          sourceType: SourceType.YOUTUBE_LIVE,
+          externalId: { startsWith: 'UC' }
+        }
+      });
 
-      if (existingCount === 0 || !hasUol) {
-        console.log('Seeding channels on startup because database does not have UOL Ao Vivo or is empty...');
+      if (existingCount === 0 || !hasUol || hasOldYoutubeConfig) {
+        console.log('Seeding channels on startup because database does not have UOL, has empty slots or outdated channel IDs...');
         await prisma.catalogChannel.deleteMany({});
         for (const channel of defaultChannels) {
           await prisma.catalogChannel.create({ data: channel });

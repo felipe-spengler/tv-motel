@@ -72,13 +72,59 @@ export async function catalogRoutes(server: FastifyInstance) {
       }
 
       if (channel.sourceType === 'YOUTUBE_LIVE') {
-        const ytChannelId = channel.externalId;
+        const handle = channel.externalId.startsWith('@') ? channel.externalId : `@${channel.externalId}`;
 
-        // Usa o formato oficial de embed para lives de canal do YouTube.
-        // Este formato localiza automaticamente a live ativa sem precisar de API calls.
-        // Ref: https://www.youtube.com/embed?listType=live&list=CHANNEL_ID
+        // 1. Tentar ler do Cache do Redis
+        const cacheKey = `youtube:live:${handle}`;
+        try {
+          const cachedVideoId = await redis.get(cacheKey);
+          if (cachedVideoId) {
+            server.log.info(`[Redis Cache Hit] Live do YouTube resolvida para ${handle}`);
+            return reply.send({
+              url: `https://www.youtube.com/embed/${cachedVideoId}?autoplay=1&enablejsapi=1`,
+              headers: {}
+            });
+          }
+        } catch (redisErr) {
+          server.log.error(redisErr, 'Erro ao ler do Redis');
+        }
+
+        // 2. Cache Miss: Fazer scraping da página de live do canal no YouTube
+        try {
+          server.log.info(`[Redis Cache Miss] Fazendo scraping de live do YouTube para ${handle}`);
+          const ytUrl = `https://www.youtube.com/${handle}/live`;
+          const response = await axios.get(ytUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            },
+            timeout: 8000
+          });
+          
+          const html = response.data;
+          const match = html.match(/"videoId"\s*:\s*"([^"]+)"/);
+
+          if (match && match[1]) {
+            const videoId = match[1];
+            // Salvar no Redis por 10 minutos (600 segundos)
+            try {
+              await redis.set(cacheKey, videoId, 'EX', 600);
+            } catch (redisErr) {
+              server.log.error(redisErr, 'Erro ao salvar no Redis');
+            }
+            return reply.send({
+              url: `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`,
+              headers: {}
+            });
+          }
+        } catch (scrapeErr: any) {
+          server.log.error(scrapeErr, `Falha no scraping da live de ${handle}`);
+        }
+
+        // 3. Fallback: Se o scraping falhar, usa o formato de playlist de live padrão
+        const cleanHandle = handle.replace('@', '');
         return reply.send({
-          url: `https://www.youtube.com/embed?listType=live&list=${ytChannelId}&autoplay=1&enablejsapi=1`,
+          url: `https://www.youtube.com/embed?listType=live&list=${cleanHandle}&autoplay=1&enablejsapi=1`,
           headers: {}
         });
       }
