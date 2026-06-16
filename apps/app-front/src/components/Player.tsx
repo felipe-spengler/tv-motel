@@ -152,7 +152,19 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
         <h2 className="text-lg font-bold text-white tracking-wide truncate max-w-lg">
           Assistindo: <span className="text-primary">{title}</span>
         </h2>
-        <div className="w-20"></div> {/* Spacer */}
+        {isYouTube ? (
+          <button
+            onClick={() => {
+              const watchUrl = streamUrl?.replace('/embed/', '/watch?v=')?.split('?')[0] || '';
+              window.open(watchUrl, '_blank');
+            }}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all focus:outline-none font-bold text-xs shadow-lg shadow-red-600/10 active:scale-95"
+          >
+            <span>Abrir no YouTube</span>
+          </button>
+        ) : (
+          <div className="w-20"></div>
+        )}
       </div>
 
       {/* Área do Player */}
