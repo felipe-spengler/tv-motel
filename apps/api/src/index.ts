@@ -69,12 +69,20 @@ async function bootstrap() {
           orderPriority: 9,
         },
         {
+          title: 'CNN Brasil Ao Vivo',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
+          externalId: '@cnnbrasil',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
+          orderPriority: 8,
+        },
+        {
           title: 'Jovem Pan News Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.M3U8_FAST,
           externalId: 'https://d6yfbj4xxtrod.cloudfront.net/out/v1/7836eb391ec24452b149f3dc6df15bbd/index.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=400',
-          orderPriority: 8,
+          orderPriority: 7,
         },
         {
           title: 'CazéTV Ao Vivo',
@@ -82,7 +90,7 @@ async function bootstrap() {
           sourceType: SourceType.YOUTUBE_LIVE,
           externalId: '@CazeTV',
           thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
-          orderPriority: 7,
+          orderPriority: 6,
         },
         {
           title: 'Canal GOAT Ao Vivo',
@@ -90,7 +98,7 @@ async function bootstrap() {
           sourceType: SourceType.YOUTUBE_LIVE,
           externalId: '@CanalGoat',
           thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
-          orderPriority: 6,
+          orderPriority: 5,
         },
         {
           title: 'FIFA+ Ao Vivo',
@@ -98,13 +106,16 @@ async function bootstrap() {
           sourceType: SourceType.M3U8_FAST,
           externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
-          orderPriority: 5,
+          orderPriority: 4,
         },
       ];
 
       const existingCount = await prisma.catalogChannel.count();
       const hasUol = await prisma.catalogChannel.findFirst({
         where: { title: 'UOL Ao Vivo' }
+      });
+      const hasCnn = await prisma.catalogChannel.findFirst({
+        where: { title: 'CNN Brasil Ao Vivo' }
       });
       const hasOldYoutubeConfig = await prisma.catalogChannel.findFirst({
         where: {
@@ -113,8 +124,8 @@ async function bootstrap() {
         }
       });
 
-      if (existingCount === 0 || !hasUol || hasOldYoutubeConfig) {
-        console.log('Seeding channels on startup because database does not have UOL, has empty slots or outdated channel IDs...');
+      if (existingCount === 0 || !hasUol || !hasCnn || hasOldYoutubeConfig) {
+        console.log('Seeding channels on startup because database does not have UOL/CNN, has empty slots or outdated channel IDs...');
         await prisma.catalogChannel.deleteMany({});
         for (const channel of defaultChannels) {
           await prisma.catalogChannel.create({ data: channel });
