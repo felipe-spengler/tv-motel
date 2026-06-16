@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { adminRoutes } from './routes/admin.js';
 import { prisma } from './utils/prisma.js';
+import { Category, SourceType } from '../prisma/client/index.js';
 
 dotenv.config();
 
@@ -53,72 +54,72 @@ async function bootstrap() {
       const defaultChannels = [
         {
           title: 'Globo Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'M3U8_FAST',
+          category: Category.NEWS,
+          sourceType: SourceType.M3U8_FAST,
           externalId: 'https://amg00716-globo-amg00716c1-tcl-br-9495.playouts.now.amagi.tv/playlist.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1598257006458-087169a1f08d?q=80&w=400',
           orderPriority: 10,
         },
         {
           title: 'CNN Brasil Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'YOUTUBE_LIVE',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
           externalId: 'UCvdwhh_fDyWccR42-rReZLw',
           thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
           orderPriority: 9,
         },
         {
           title: 'Jovem Pan News Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'M3U8_FAST',
+          category: Category.NEWS,
+          sourceType: SourceType.M3U8_FAST,
           externalId: 'https://d6yfbj4xxtrod.cloudfront.net/out/v1/7836eb391ec24452b149f3dc6df15bbd/index.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=400',
           orderPriority: 8,
         },
         {
           title: 'SBT Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'YOUTUBE_LIVE',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
           externalId: 'UC376n347Ob5Lwzq2WGzF1AA',
           thumbnailUrl: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=400',
           orderPriority: 7,
         },
         {
           title: 'Band Jornalismo Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'YOUTUBE_LIVE',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
           externalId: 'UC510t6P8s-vT_cT-J3D4R-g',
           thumbnailUrl: 'https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?q=80&w=400',
           orderPriority: 6,
         },
         {
           title: 'Record News Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'YOUTUBE_LIVE',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
           externalId: 'UCuiLR4p6wQ3xLEm15pEn1Xw',
           thumbnailUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400',
           orderPriority: 5,
         },
         {
           title: 'RedeTV! Ao Vivo',
-          category: 'NEWS' as const,
-          sourceType: 'YOUTUBE_LIVE',
+          category: Category.NEWS,
+          sourceType: SourceType.YOUTUBE_LIVE,
           externalId: 'UCd7VVhgnd2eCv9JEghvR_1w',
           thumbnailUrl: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=400',
           orderPriority: 4,
         },
         {
           title: 'Cazé TV (Esportes)',
-          category: 'NEWS' as const,
-          sourceType: 'M3U8_FAST',
+          category: Category.NEWS,
+          sourceType: SourceType.M3U8_FAST,
           externalId: 'https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
           orderPriority: 3,
         },
         {
           title: 'FIFA+ Ao Vivo',
-          category: 'MOVIES' as const,
-          sourceType: 'M3U8_FAST',
+          category: Category.MOVIES,
+          sourceType: SourceType.M3U8_FAST,
           externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
           orderPriority: 2,
