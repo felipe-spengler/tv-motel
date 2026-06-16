@@ -61,10 +61,10 @@ async function bootstrap() {
           orderPriority: 10,
         },
         {
-          title: 'CNN Brasil Ao Vivo',
+          title: 'UOL Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UCvdwhh_fDyWccR42-rReZLw',
+          externalId: 'UCE46S_7YgNGz9bSxsL3f0_A',
           thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400',
           orderPriority: 9,
         },
@@ -77,44 +77,20 @@ async function bootstrap() {
           orderPriority: 8,
         },
         {
-          title: 'SBT Ao Vivo',
+          title: 'CazéTV Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UC376n347Ob5Lwzq2WGzF1AA',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=400',
+          externalId: 'UC_3M2U0YmZst7fS3_C4S7Cg',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
           orderPriority: 7,
         },
         {
-          title: 'Band Jornalismo Ao Vivo',
+          title: 'Canal GOAT Ao Vivo',
           category: Category.NEWS,
           sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UC510t6P8s-vT_cT-J3D4R-g',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?q=80&w=400',
+          externalId: 'UC6G9NdfofOWeYrcnUOn0jYg',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
           orderPriority: 6,
-        },
-        {
-          title: 'Record News Ao Vivo',
-          category: Category.NEWS,
-          sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UCuiLR4p6wQ3xLEm15pEn1Xw',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400',
-          orderPriority: 5,
-        },
-        {
-          title: 'RedeTV! Ao Vivo',
-          category: Category.NEWS,
-          sourceType: SourceType.YOUTUBE_LIVE,
-          externalId: 'UCd7VVhgnd2eCv9JEghvR_1w',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=400',
-          orderPriority: 4,
-        },
-        {
-          title: 'Cazé TV (Esportes)',
-          category: Category.NEWS,
-          sourceType: SourceType.M3U8_FAST,
-          externalId: 'https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
-          orderPriority: 3,
         },
         {
           title: 'FIFA+ Ao Vivo',
@@ -122,20 +98,17 @@ async function bootstrap() {
           sourceType: SourceType.M3U8_FAST,
           externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
           thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
-          orderPriority: 2,
+          orderPriority: 5,
         },
       ];
 
       const existingCount = await prisma.catalogChannel.count();
-      const hasOldConfig = await prisma.catalogChannel.findFirst({
-        where: {
-          title: { in: ['CNN Brasil Ao Vivo', 'SBT Ao Vivo', 'RedeTV! Ao Vivo', 'Band Jornalismo Ao Vivo', 'Record News Ao Vivo'] },
-          sourceType: 'M3U8_FAST'
-        }
+      const hasUol = await prisma.catalogChannel.findFirst({
+        where: { title: 'UOL Ao Vivo' }
       });
 
-      if (existingCount === 0 || hasOldConfig) {
-        console.log('Seeding channels on startup because database has outdated configs or is empty...');
+      if (existingCount === 0 || !hasUol) {
+        console.log('Seeding channels on startup because database does not have UOL Ao Vivo or is empty...');
         await prisma.catalogChannel.deleteMany({});
         for (const channel of defaultChannels) {
           await prisma.catalogChannel.create({ data: channel });
