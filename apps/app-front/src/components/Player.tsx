@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
-import { ArrowLeft, RefreshCw, Flame } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface PlayerProps {
   title: string;
