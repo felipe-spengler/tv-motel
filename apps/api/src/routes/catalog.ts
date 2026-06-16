@@ -28,17 +28,66 @@ export async function catalogRoutes(server: FastifyInstance) {
         ]
       });
 
+      // Validar e filtrar canais do YouTube em tempo real / cache para exibir somente os que estão online
+      const checkedChannels = await Promise.all(channels.map(async (channel: any) => {
+        if (channel.sourceType !== 'YOUTUBE_LIVE') {
+          return channel;
+        }
+
+        const handle = channel.externalId.startsWith('@') ? channel.externalId : `@${channel.externalId}`;
+        const cacheKey = `youtube:live:${handle}`;
+        try {
+          const cachedValue = await redis.get(cacheKey);
+          if (cachedValue === 'offline') {
+            server.log.info(`[Grid Filter] Ocultando canal ${channel.title} (marcado como offline no cache)`);
+            return null;
+          }
+          if (cachedValue) {
+            return channel; // Está online (ID em cache)
+          }
+
+          // Cache miss: faz scraping rápido
+          server.log.info(`[Grid Filter Miss] Verificando status ao vivo para ${channel.title} (${handle})...`);
+          const ytUrl = `https://www.youtube.com/${handle}/live`;
+          const response = await axios.get(ytUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            },
+            timeout: 2500 // Timeout agressivo para não lentificar a grade
+          });
+
+          const html = response.data;
+          const match = html.match(/"videoId"\s*:\s*"([^"]+)"/);
+
+          if (match && match[1]) {
+            const videoId = match[1];
+            await redis.set(cacheKey, videoId, 'EX', 600); // 10 min
+            return channel;
+          } else {
+            await redis.set(cacheKey, 'offline', 'EX', 300); // 5 min offline
+            server.log.info(`[Grid Filter] Ocultando canal ${channel.title} (nenhuma live ativa encontrada)`);
+            return null;
+          }
+        } catch (err) {
+          // Em caso de falha de rede/timeout, mantém o canal visível por segurança
+          return channel;
+        }
+      }));
+
+      const visibleChannels = checkedChannels.filter(Boolean) as any[];
+
       // Agrupar canais por categoria para facilitar a renderização de carrosséis no front
       const categories: Record<string, any[]> = {};
       
-      channels.forEach((channel: any) => {
+      visibleChannels.forEach((channel: any) => {
         if (!categories[channel.category]) {
           categories[channel.category] = [];
         }
         categories[channel.category].push(channel);
       });
 
-      return reply.send({ categories, rawList: channels });
+      return reply.send({ categories, rawList: visibleChannels });
     } catch (err: any) {
       server.log.error(err);
       return reply.code(500).send({ error: 'Erro ao buscar grade do catálogo' });
