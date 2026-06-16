@@ -86,10 +86,11 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
             console.log(`[YouTube Player Error ${errorCode}] Resolvendo link de live antigo quebrado...`);
             setLoading(true);
             
-            // Extrai o ID do canal da URL do stream original
-            // A URL padrão é: https://www.youtube.com/embed/live_stream?channel=CHANNEL_ID&autoplay=1
+            // Extrai o ID do canal da URL do stream
+            // Novo formato: https://www.youtube.com/embed?listType=live&list=CHANNEL_ID
+            // Formato legado: https://www.youtube.com/embed/live_stream?channel=CHANNEL_ID
             const urlObj = new URL(streamUrl);
-            const ytChannelId = urlObj.searchParams.get('channel');
+            const ytChannelId = urlObj.searchParams.get('list') || urlObj.searchParams.get('channel');
             
             if (ytChannelId) {
               const { apiClient } = await import('../utils/api.js');

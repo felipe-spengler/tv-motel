@@ -100,26 +100,26 @@ async function main() {
       orderPriority: 8,
     },
     {
-      title: 'Cazé TV (Esportes)',
-      category: 'MOVIES',
-      sourceType: 'YOUTUBE_LIVE',
-      externalId: 'UCR21Fv3aT26lM7o1f592fSw',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
-      orderPriority: 7,
-    },
-    {
       title: 'SBT Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
       externalId: 'UCzwHRMsQf_X72x2z5H9_58g',
       thumbnailUrl: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=400',
+      orderPriority: 7,
+    },
+    {
+      title: 'Band Jornalismo Ao Vivo',
+      category: 'NEWS',
+      sourceType: 'YOUTUBE_LIVE',
+      externalId: 'UCoa-D_VfMkFrCYodrOC9-mA',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?q=80&w=400',
       orderPriority: 6,
     },
     {
-      title: 'Record TV Ao Vivo',
+      title: 'Record News Ao Vivo',
       category: 'NEWS',
       sourceType: 'YOUTUBE_LIVE',
-      externalId: 'UC9fU2_Lp6-qXpE_j4D2g22g',
+      externalId: 'UCuiLR4p6wQ3xLEm15pEn1Xw',
       thumbnailUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400',
       orderPriority: 5,
     },
@@ -132,13 +132,21 @@ async function main() {
       orderPriority: 4,
     },
     {
+      title: 'Cazé TV (Esportes)',
+      category: 'NEWS',
+      sourceType: 'YOUTUBE_LIVE',
+      externalId: 'UCR21Fv3aT26lM7o1f592fSw',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
+      orderPriority: 3,
+    },
+    {
       title: 'FIFA+ Ao Vivo',
       category: 'MOVIES',
       sourceType: 'M3U8_FAST',
       externalId: 'https://e3be9ac5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctYnJfRklGQVBsdXNQb3J0dWd1ZXNlX0hMUw/playlist.m3u8',
       thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=400',
-      orderPriority: 3,
-    }
+      orderPriority: 2,
+    },
   ];
 
   // Limpar catálogo existente para garantir atualização total dos links/ids
