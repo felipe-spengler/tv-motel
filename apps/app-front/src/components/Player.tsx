@@ -70,6 +70,51 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
     };
   }, [streamUrl, sourceType]);
 
+  // Escuta postMessage da API do Iframe do YouTube para erros (101, 150, 100)
+  useEffect(() => {
+    if (sourceType !== 'YOUTUBE_LIVE' || !streamUrl) return;
+
+    const handleMessage = async (e: MessageEvent) => {
+      // Verifica se a mensagem veio do YouTube
+      if (!e.origin.includes('youtube.com')) return;
+
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data.event === 'infoDelivery' && data.info?.errorCode) {
+          const errorCode = data.info.errorCode;
+          if ([100, 101, 150].includes(errorCode)) {
+            console.log(`[YouTube Player Error ${errorCode}] Resolvendo link de live antigo quebrado...`);
+            setLoading(true);
+            
+            // Extrai o ID do canal da URL do stream original
+            // A URL padrão é: https://www.youtube.com/embed/live_stream?channel=CHANNEL_ID&autoplay=1
+            const urlObj = new URL(streamUrl);
+            const ytChannelId = urlObj.searchParams.get('channel');
+            
+            if (ytChannelId) {
+              const { apiClient } = await import('../utils/api.js');
+              const res = await apiClient.request('/catalog/live-resolve', {
+                method: 'POST',
+                body: JSON.stringify({ channelId: ytChannelId })
+              });
+              if (res.url) {
+                setStreamUrl(res.url);
+              }
+            } else {
+              setError('Não foi possível identificar o ID do canal do YouTube.');
+            }
+            setLoading(false);
+          }
+        }
+      } catch (err) {
+        // Ignora erros de parse de mensagens de outras extensões
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [streamUrl, sourceType]);
+
   // Escuta tecla 'Esc' ou 'Back' para voltar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -128,7 +173,8 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
           <>
             {sourceType === 'YOUTUBE_LIVE' ? (
               <iframe
-                src={streamUrl}
+                id="yt-player-iframe"
+                src={streamUrl?.includes('enablejsapi=1') ? streamUrl : `${streamUrl}&enablejsapi=1`}
                 title={title}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

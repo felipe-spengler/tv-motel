@@ -166,6 +166,41 @@ export async function catalogRoutes(server: FastifyInstance) {
     }
   });
 
+  // POST /v1/catalog/live-resolve
+  server.post('/live-resolve', async (request, reply) => {
+    const { channelId } = request.body as { channelId: string };
+    if (!channelId) {
+      return reply.code(400).send({ error: 'O parâmetro channelId é obrigatório.' });
+    }
+
+    try {
+      const apiKey = process.env.YOUTUBE_API_KEY || 'AIzaSyCqSst_dnDR560tHd4MWvsPYywv1VcXgxw';
+      const ytUrl = `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`;
+      
+      const response = await axios.get(ytUrl, { timeout: 10000 });
+      const newVideoId = response.data?.items?.[0]?.id?.videoId;
+
+      if (!newVideoId) {
+        return reply.code(404).send({ error: 'Nenhuma transmissão ao vivo encontrada para este canal.' });
+      }
+
+      const cacheKey = `youtube:live:${channelId}`;
+      try {
+        await redis.set(cacheKey, newVideoId, 'EX', 3600);
+      } catch (redisErr) {
+        server.log.error(redisErr, 'Erro ao salvar live no Redis');
+      }
+
+      return reply.send({ 
+        videoId: newVideoId,
+        url: `https://www.youtube.com/embed/${newVideoId}?autoplay=1&enablejsapi=1`
+      });
+    } catch (err: any) {
+      server.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao resolver nova live do YouTube.' });
+    }
+  });
+
   // GET /v1/catalog/proxy - Proxy de CORS para canais FAST/M3U8
   server.get('/proxy', async (request, reply) => {
     const { url } = request.query as { url: string };
