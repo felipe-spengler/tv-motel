@@ -134,8 +134,8 @@ async function main() {
     {
       title: 'CazéTV Ao Vivo',
       category: 'PODCASTS',
-      sourceType: 'YOUTUBE_LIVE',
-      externalId: '@CazeTV',
+      sourceType: 'IFRAME_CAM_AFFILIATE',
+      externalId: 'https://player.twitch.tv/?channel=cazetv&parent=tv.motelinteligente.com&parent=localhost&autoplay=true',
       thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
       orderPriority: 3,
     },

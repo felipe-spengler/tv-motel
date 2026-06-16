@@ -481,14 +481,14 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-4 border-b border-stone-900 pb-2">
               <Flame className="w-5 h-5 text-rose-500" />
               <h2 className="text-xl font-bold tracking-wide text-stone-200">
-                {searchQuery ? `Vídeos sobre "${searchQuery}" no XVideos` : 'Vídeos em Destaque do XVideos'}
+                {searchQuery ? `Vídeos de "${searchQuery}"` : 'Vídeos em Destaque'}
               </h2>
             </div>
 
             {searchLoading && (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <div className="w-8 h-8 border-4 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-stone-500 text-xs">Raspando vídeos da rede do XVideos...</p>
+                <p className="text-stone-500 text-xs">Carregando catálogo de vídeos...</p>
               </div>
             )}
 
@@ -497,7 +497,7 @@ export default function Dashboard() {
             )}
 
             {!searchLoading && !searchError && dynamicVideos.length === 0 && (
-              <p className="text-stone-500 text-sm text-center py-6">Nenhum vídeo encontrado no XVideos para esta busca.</p>
+              <p className="text-stone-500 text-sm text-center py-6">Nenhum vídeo encontrado para esta categoria.</p>
             )}
 
             {!searchLoading && !searchError && dynamicVideos.length > 0 && (
@@ -532,7 +532,7 @@ export default function Dashboard() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90" />
                         
                         <span className="absolute top-3 left-3 bg-rose-650 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-rose-500/20 uppercase tracking-wider">
-                          XVideos
+                          Premium
                         </span>
                       </div>
 
