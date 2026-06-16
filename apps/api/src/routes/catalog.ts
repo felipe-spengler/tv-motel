@@ -72,9 +72,54 @@ export async function catalogRoutes(server: FastifyInstance) {
       }
 
       if (channel.sourceType === 'YOUTUBE_LIVE') {
-        // Retorna a URL de transmissão ao vivo contínua baseada no ID do canal do YouTube
+        const ytChannelId = channel.externalId;
+        const cacheKey = `youtube:live:${ytChannelId}`;
+
+        // 1. Tentar buscar videoId já resolvido do cache Redis
+        let videoId: string | null = null;
+        try {
+          videoId = await redis.get(cacheKey);
+          if (videoId) {
+            server.log.info(`[Redis Cache Hit] videoId da live do YouTube encontrado para o canal ${channel.title}: ${videoId}`);
+          }
+        } catch (redisErr) {
+          server.log.error(redisErr, 'Erro ao consultar Redis para live do YouTube');
+        }
+
+        // 2. Cache miss: Buscar via YouTube Data API
+        if (!videoId) {
+          server.log.info(`[YouTube API] Resolvendo live para canal ${channel.title} (${ytChannelId})...`);
+          try {
+            const apiKey = process.env.YOUTUBE_API_KEY || 'AIzaSyCqSst_dnDR560tHd4MWvsPYywv1VcXgxw';
+            const ytUrl = `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${ytChannelId}&eventType=live&type=video&key=${apiKey}`;
+            const response = await axios.get(ytUrl, { timeout: 10000 });
+            videoId = response.data?.items?.[0]?.id?.videoId ?? null;
+
+            if (videoId) {
+              // Salvar no Redis por 1 hora
+              try {
+                await redis.set(cacheKey, videoId, 'EX', 3600);
+              } catch (redisErr) {
+                server.log.error(redisErr, 'Erro ao salvar videoId da live no Redis');
+              }
+            }
+          } catch (ytErr: any) {
+            server.log.error(ytErr, 'Erro ao consultar YouTube Data API');
+          }
+        }
+
+        // 3. Se encontrou videoId, retorna embed direto; senão, usa fallback do canal
+        if (videoId) {
+          return reply.send({
+            url: `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`,
+            headers: {}
+          });
+        }
+
+        // Fallback: link de canal genérico (pode não funcionar em todos os canais)
+        server.log.warn(`[YouTube Live] Nenhuma live encontrada para canal ${channel.title}. Usando fallback.`);
         return reply.send({ 
-          url: `https://www.youtube.com/embed/live_stream?channel=${channel.externalId}&autoplay=1`,
+          url: `https://www.youtube.com/embed/live_stream?channel=${ytChannelId}&autoplay=1&enablejsapi=1`,
           headers: {}
         });
       }
