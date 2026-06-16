@@ -18,6 +18,7 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const isYouTube = sourceType === 'YOUTUBE_LIVE' || streamUrl?.includes('youtube.com/embed') || streamUrl?.includes('youtube.com/watch') || streamUrl?.includes('youtu.be');
 
   // Carregar e resolver o link de streaming da API
   const loadStream = async () => {
@@ -39,14 +40,22 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
 
   // Inicializar e destruir o player de vídeo do Video.js
   useEffect(() => {
-    if (!videoRef.current || !streamUrl || sourceType === 'YOUTUBE_LIVE' || sourceType === 'IFRAME_CAM_AFFILIATE') return;
+    if (!videoRef.current || !streamUrl || isYouTube || sourceType === 'IFRAME_CAM_AFFILIATE') return;
 
-    // Inicializar Video.js
+    // Inicializar Video.js com configurações permissivas baseadas em videojs-http-streaming
     const options = {
       autoplay: true,
       controls: true,
       responsive: true,
       fluid: true,
+      html5: {
+        vhs: {
+          overrideNative: true,         // Evita player nativo bugado de algumas TVs
+          allowOverlap: true,           // Evita travamentos com chunks sobrepostos
+          exactManifestTimings: false,  // Tolera desvios de tempo do m3u8
+          fastStart: true,              // Começa a tocar o quanto antes
+        }
+      },
       sources: [{
         src: streamUrl,
         type: streamUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'
@@ -68,11 +77,11 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
         playerRef.current = null;
       }
     };
-  }, [streamUrl, sourceType]);
+  }, [streamUrl, sourceType, isYouTube]);
 
   // Escuta postMessage da API do Iframe do YouTube para erros (101, 150, 100)
   useEffect(() => {
-    if (sourceType !== 'YOUTUBE_LIVE' || !streamUrl) return;
+    if (!isYouTube || !streamUrl) return;
 
     const handleMessage = async (e: MessageEvent) => {
       // Verifica se a mensagem veio do YouTube
@@ -87,8 +96,6 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
             setLoading(true);
             
             // Extrai o ID do canal da URL do stream
-            // Novo formato: https://www.youtube.com/embed?listType=live&list=CHANNEL_ID
-            // Formato legado: https://www.youtube.com/embed/live_stream?channel=CHANNEL_ID
             const urlObj = new URL(streamUrl);
             const ytChannelId = urlObj.searchParams.get('list') || urlObj.searchParams.get('channel');
             
@@ -114,7 +121,7 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [streamUrl, sourceType]);
+  }, [streamUrl, sourceType, isYouTube]);
 
   // Escuta tecla 'Esc' ou 'Back' para voltar
   useEffect(() => {
@@ -172,7 +179,7 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
 
         {!loading && !error && streamUrl && (
           <>
-            {sourceType === 'YOUTUBE_LIVE' ? (
+            {isYouTube ? (
               <iframe
                 id="yt-player-iframe"
                 src={streamUrl?.includes('enablejsapi=1') ? streamUrl : `${streamUrl}&enablejsapi=1`}
