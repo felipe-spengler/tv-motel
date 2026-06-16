@@ -151,7 +151,7 @@ export default function Login() {
             <Tv className="w-7 h-7 text-white" />
           </div>
           <div>
-            <span className="text-2xl font-black tracking-tight text-white">TV Motel</span>
+            <span className="text-2xl font-black tracking-tight text-white">PornoTv</span>
             <p className="text-stone-500 text-xs font-semibold">ENTRETENIMENTO INTELIGENTE</p>
           </div>
         </div>

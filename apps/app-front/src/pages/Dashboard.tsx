@@ -50,7 +50,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   
   // Abas e Busca XVideos
-  const [activeTab, setActiveTab] = useState<'normal' | 'adult'>('normal');
+  const [activeTab, setActiveTab] = useState<'normal' | 'adult'>('adult');
   const [searchQuery, setSearchQuery] = useState('');
   const [dynamicVideos, setDynamicVideos] = useState<Channel[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -60,8 +60,8 @@ export default function Dashboard() {
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
 
   // Acessibilidade Smart TV: Foco via Teclado/Controle Remoto
-  const [focusSection, setFocusSection] = useState<'tabs' | 'categories' | 'channels'>('channels');
-  const [focusedTabIndex, setFocusedTabIndex] = useState<number>(0); // 0: normal, 1: adult, 2: logout
+  const [focusSection, setFocusSection] = useState<'tabs' | 'categories' | 'channels'>('categories');
+  const [focusedTabIndex, setFocusedTabIndex] = useState<number>(1); // 0: normal, 1: adult, 2: logout
   const [focusedCategoryIndex, setFocusedCategoryIndex] = useState<number>(0);
   const [focusedChannelIndex, setFocusedChannelIndex] = useState<number>(0);
 
@@ -304,7 +304,7 @@ export default function Dashboard() {
             <Tv className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-stone-400">
-            TV Motel
+            PornoTv
           </span>
         </div>
 
@@ -325,7 +325,7 @@ export default function Dashboard() {
               } ${focusSection === 'tabs' && focusedTabIndex === 0 ? 'tv-active-focus' : ''}`}
             >
               <Tv className="w-4 h-4" />
-              <span>Canais & Filmes</span>
+              <span>Outros Canais</span>
             </button>
             <button
               ref={el => tabRefs.current[1] = el}
