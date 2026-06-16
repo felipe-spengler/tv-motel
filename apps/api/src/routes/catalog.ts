@@ -328,12 +328,16 @@ export async function catalogRoutes(server: FastifyInstance) {
         const lines = text.split('\n');
         const rewrittenLines = lines.map((line: string) => {
           const trimmed = line.trim();
-          if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('http')) {
-            if (trimmed.startsWith('/')) {
-              return parsedUrl.origin + trimmed;
+          if (trimmed && !trimmed.startsWith('#')) {
+            let absoluteUrl = '';
+            if (trimmed.startsWith('http')) {
+              absoluteUrl = trimmed;
+            } else if (trimmed.startsWith('/')) {
+              absoluteUrl = parsedUrl.origin + trimmed;
             } else {
-              return baseUrl + trimmed;
+              absoluteUrl = baseUrl + trimmed;
             }
+            return `/api/v1/catalog/proxy?url=${encodeURIComponent(absoluteUrl)}`;
           }
           return line;
         });
