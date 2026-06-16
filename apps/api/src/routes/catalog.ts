@@ -59,14 +59,18 @@ export async function catalogRoutes(server: FastifyInstance) {
 
           const html = response.data;
           const match = html.match(/"videoId"\s*:\s*"([^"]+)"/);
+          
+          const isUpcomingOrOffline = html.includes('"style":"PLAYBACK_STATUS_UPCOMING"') || 
+                                      html.includes('LIVE_STREAM_OFFLINE') || 
+                                      html.includes('"playabilityStatus":{"status":"LIVE_STREAM_OFFLINE"');
 
-          if (match && match[1]) {
+          if (match && match[1] && !isUpcomingOrOffline) {
             const videoId = match[1];
             await redis.set(cacheKey, videoId, 'EX', 600); // 10 min
             return channel;
           } else {
             await redis.set(cacheKey, 'offline', 'EX', 300); // 5 min offline
-            server.log.info(`[Grid Filter] Ocultando canal ${channel.title} (nenhuma live ativa encontrada)`);
+            server.log.info(`[Grid Filter] Ocultando canal ${channel.title} (nenhuma live ativa encontrada ou agendada/offline)`);
             return null;
           }
         } catch (err) {
@@ -153,7 +157,11 @@ export async function catalogRoutes(server: FastifyInstance) {
           const html = response.data;
           const match = html.match(/"videoId"\s*:\s*"([^"]+)"/);
 
-          if (match && match[1]) {
+          const isUpcomingOrOffline = html.includes('"style":"PLAYBACK_STATUS_UPCOMING"') || 
+                                      html.includes('LIVE_STREAM_OFFLINE') || 
+                                      html.includes('"playabilityStatus":{"status":"LIVE_STREAM_OFFLINE"');
+
+          if (match && match[1] && !isUpcomingOrOffline) {
             const videoId = match[1];
             // Salvar no Redis por 10 minutos (600 segundos)
             try {
@@ -165,6 +173,14 @@ export async function catalogRoutes(server: FastifyInstance) {
               url: `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`,
               headers: {}
             });
+          } else if (match && match[1] && isUpcomingOrOffline) {
+            // Se for upcoming ou offline, salva como offline no redis por 5 min
+            try {
+              await redis.set(cacheKey, 'offline', 'EX', 300);
+            } catch (redisErr) {
+              server.log.error(redisErr, 'Erro ao salvar no Redis');
+            }
+            return reply.code(404).send({ error: 'Nenhuma transmissão ao vivo ativa encontrada no momento (agendada ou offline).' });
           }
         } catch (scrapeErr: any) {
           server.log.error(scrapeErr, `Falha no scraping da live de ${handle}`);

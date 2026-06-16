@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, UserInfo } from '../utils/api.js';
 import Player from '../components/Player.js';
-import { Tv, LogOut, ShieldAlert, MonitorPlay, Radio, Heart, Flame, Search } from 'lucide-react';
+import { Tv, LogOut, ShieldAlert, MonitorPlay, Radio, Heart, Flame, Trophy } from 'lucide-react';
 
 interface Channel {
   id: string;
@@ -13,6 +13,33 @@ interface Channel {
   thumbnailUrl: string;
   isDynamic?: boolean;
 }
+
+const ADULT_CATEGORIES = [
+  { label: '🔥 Geral', tag: '' },
+  { label: '🇧🇷 Brasileiras', tag: 'brasileira' },
+  { label: '🇧🇷 Amador', tag: 'amador' },
+  { label: '💆 Massagem', tag: 'massagem' },
+  { label: '💑 Casal', tag: 'casal' },
+  { label: '👵 Coroas / MILF', tag: 'coroas milf' },
+  { label: '👱‍♀️ Loiras', tag: 'loira' },
+  { label: '👩 Morenas', tag: 'morena' },
+  { label: '👩‍🦰 Ruivas', tag: 'ruiva' },
+  { label: '🥵 Trans', tag: 'trans' },
+  { label: '🍑 Anal', tag: 'anal' },
+  { label: '💋 Oral', tag: 'boquete' },
+  { label: '👥 Suruba', tag: 'suruba' },
+  { label: '👩‍❤️‍👩 Lésbicas', tag: 'lesbicas' },
+  { label: '👾 Hentai', tag: 'hentai' },
+  { label: '🏢 Fetiche', tag: 'bdsm fetiche' },
+  { label: '🎥 POV', tag: 'pov' },
+  { label: '🥛 Gozada', tag: 'gozada creampie' },
+  { label: '💦 Safadas', tag: 'safadas' },
+  { label: '👩‍🏫 Colegial', tag: 'colegial' },
+  { label: '👙 Peitudas', tag: 'peitudas' },
+  { label: '🍑 Bunda Grande', tag: 'bunda' },
+  { label: '👨‍❤️‍👨 Gay', tag: 'gay' },
+  { label: '🧼 Banho', tag: 'banho' }
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -32,9 +59,16 @@ export default function Dashboard() {
   // Controle do Player
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
 
-  // Acessibilidade Smart TV: Foco via Teclado
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  // Acessibilidade Smart TV: Foco via Teclado/Controle Remoto
+  const [focusSection, setFocusSection] = useState<'tabs' | 'categories' | 'channels'>('channels');
+  const [focusedTabIndex, setFocusedTabIndex] = useState<number>(0); // 0: normal, 1: adult, 2: logout
+  const [focusedCategoryIndex, setFocusedCategoryIndex] = useState<number>(0);
+  const [focusedChannelIndex, setFocusedChannelIndex] = useState<number>(0);
+
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const categoryRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const logoutRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const activeUser = apiClient.getUser();
@@ -51,7 +85,6 @@ export default function Dashboard() {
     if (activeTab === 'adult' && dynamicVideos.length === 0) {
       fetchXVideos('');
     }
-    setFocusedIndex(-1); // Reseta o foco ao mudar de aba
   }, [activeTab]);
 
   const fetchGrid = async () => {
@@ -90,10 +123,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleSearch = () => {
-    fetchXVideos(searchQuery);
-  };
-
   const handleLogout = async () => {
     const refreshToken = apiClient.getRefreshToken();
     if (refreshToken) {
@@ -117,47 +146,123 @@ export default function Dashboard() {
     ...(activeTab === 'adult' ? dynamicVideos : [])
   ];
 
+  // Manter o índice focado em limites seguros
+  useEffect(() => {
+    if (focusedChannelIndex >= visibleItems.length && visibleItems.length > 0) {
+      setFocusedChannelIndex(visibleItems.length - 1);
+    }
+  }, [visibleItems.length, focusedChannelIndex]);
+
   // Escuta teclas de setas do controle remoto / teclado
   useEffect(() => {
-    if (loading || visibleItems.length === 0 || activeChannel) return;
+    if (loading || activeChannel) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) {
-        // Se estiver digitando na busca, não bloqueia o teclado para letras, apenas setas verticais
-        const isTyping = document.activeElement?.tagName === 'INPUT';
-        if (isTyping && ['Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) {
+        return;
+      }
+      e.preventDefault();
+
+      if (focusSection === 'tabs') {
+        if (e.key === 'ArrowRight') {
+          setFocusedTabIndex(prev => (prev + 1) % 3);
+        } else if (e.key === 'ArrowLeft') {
+          setFocusedTabIndex(prev => (prev - 1 + 3) % 3);
+        } else if (e.key === 'ArrowDown') {
+          if (activeTab === 'adult') {
+            setFocusSection('categories');
+            setFocusedCategoryIndex(0);
+          } else {
+            setFocusSection('channels');
+            setFocusedChannelIndex(0);
+          }
+        } else if (e.key === 'Enter') {
+          if (focusedTabIndex === 0) {
+            setActiveTab('normal');
+            setFocusSection('channels');
+            setFocusedChannelIndex(0);
+          } else if (focusedTabIndex === 1) {
+            setActiveTab('adult');
+            setFocusSection('categories');
+            setFocusedCategoryIndex(0);
+          } else if (focusedTabIndex === 2) {
+            handleLogout();
+          }
+        }
+      } else if (focusSection === 'categories') {
+        if (e.key === 'ArrowRight') {
+          setFocusedCategoryIndex(prev => (prev + 1) % ADULT_CATEGORIES.length);
+        } else if (e.key === 'ArrowLeft') {
+          setFocusedCategoryIndex(prev => (prev - 1 + ADULT_CATEGORIES.length) % ADULT_CATEGORIES.length);
+        } else if (e.key === 'ArrowDown') {
+          setFocusSection('channels');
+          setFocusedChannelIndex(0);
+        } else if (e.key === 'ArrowUp') {
+          setFocusSection('tabs');
+          setFocusedTabIndex(1);
+        } else if (e.key === 'Enter') {
+          const cat = ADULT_CATEGORIES[focusedCategoryIndex];
+          setSearchQuery(cat.tag);
+          fetchXVideos(cat.tag);
+        }
+      } else if (focusSection === 'channels') {
+        if (visibleItems.length === 0) {
+          if (e.key === 'ArrowUp') {
+            if (activeTab === 'adult') {
+              setFocusSection('categories');
+              setFocusedCategoryIndex(0);
+            } else {
+              setFocusSection('tabs');
+              setFocusedTabIndex(0);
+            }
+          }
           return;
         }
-        e.preventDefault();
-      }
 
-      if (e.key === 'ArrowRight') {
-        setFocusedIndex(prev => (prev + 1) % visibleItems.length);
-      } else if (e.key === 'ArrowLeft') {
-        setFocusedIndex(prev => (prev - 1 + visibleItems.length) % visibleItems.length);
-      } else if (e.key === 'ArrowDown') {
-        setFocusedIndex(prev => (prev + 4) % visibleItems.length);
-      } else if (e.key === 'ArrowUp') {
-        setFocusedIndex(prev => (prev - 4 + visibleItems.length) % visibleItems.length);
-      } else if (e.key === 'Enter' && focusedIndex >= 0) {
-        setActiveChannel(visibleItems[focusedIndex]);
+        if (e.key === 'ArrowRight') {
+          setFocusedChannelIndex(prev => (prev + 1) % visibleItems.length);
+        } else if (e.key === 'ArrowLeft') {
+          setFocusedChannelIndex(prev => (prev - 1 + visibleItems.length) % visibleItems.length);
+        } else if (e.key === 'ArrowDown') {
+          setFocusedChannelIndex(prev => (prev + 4) % visibleItems.length);
+        } else if (e.key === 'ArrowUp') {
+          if (focusedChannelIndex < 4) {
+            if (activeTab === 'adult') {
+              setFocusSection('categories');
+              setFocusedCategoryIndex(0);
+            } else {
+              setFocusSection('tabs');
+              setFocusedTabIndex(0);
+            }
+          } else {
+            setFocusedChannelIndex(prev => prev - 4);
+          }
+        } else if (e.key === 'Enter') {
+          setActiveChannel(visibleItems[focusedChannelIndex]);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loading, visibleItems, focusedIndex, activeChannel]);
+  }, [loading, visibleItems, focusSection, focusedTabIndex, focusedCategoryIndex, focusedChannelIndex, activeTab, activeChannel]);
 
   // Rolar para o elemento focado para manter a visibilidade na TV
   useEffect(() => {
-    if (focusedIndex >= 0 && cardRefs.current[focusedIndex]) {
-      cardRefs.current[focusedIndex]?.scrollIntoView({
+    if (focusSection === 'channels' && focusedChannelIndex >= 0 && cardRefs.current[focusedChannelIndex]) {
+      cardRefs.current[focusedChannelIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      });
+    } else if (focusSection === 'categories' && focusedCategoryIndex >= 0 && categoryRefs.current[focusedCategoryIndex]) {
+      categoryRefs.current[focusedCategoryIndex]?.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
         inline: 'center',
       });
     }
-  }, [focusedIndex]);
+  }, [focusSection, focusedChannelIndex, focusedCategoryIndex]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -165,6 +270,7 @@ export default function Dashboard() {
       case 'MOVIES': return <MonitorPlay className="w-5 h-5 text-indigo-400" />;
       case 'ADULT_CONTENT': return <Flame className="w-5 h-5 text-rose-500" />;
       case 'LIVE_CAMS': return <Heart className="w-5 h-5 text-pink-400" />;
+      case 'PODCASTS': return <Trophy className="w-5 h-5 text-amber-500" />;
       default: return <Tv className="w-5 h-5 text-stone-400" />;
     }
   };
@@ -175,7 +281,7 @@ export default function Dashboard() {
       case 'MOVIES': return 'Filmes & Séries FAST';
       case 'ADULT_CONTENT': return 'Canais Adultos';
       case 'LIVE_CAMS': return 'Webcams ao Vivo';
-      case 'PODCASTS': return 'Podcasts';
+      case 'PODCASTS': return 'Esportes & Variedades';
       default: return category;
     }
   };
@@ -206,23 +312,33 @@ export default function Dashboard() {
         {!loading && !error && (
           <div className="bg-stone-900/60 p-1 rounded-xl border border-stone-850 flex gap-1">
             <button
-              onClick={() => setActiveTab('normal')}
+              ref={el => tabRefs.current[0] = el}
+              onClick={() => {
+                setActiveTab('normal');
+                setFocusSection('tabs');
+                setFocusedTabIndex(0);
+              }}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-xs transition-all focus:outline-none ${
                 activeTab === 'normal'
                   ? 'bg-primary text-white shadow shadow-primary/25'
                   : 'text-stone-400 hover:text-white'
-              }`}
+              } ${focusSection === 'tabs' && focusedTabIndex === 0 ? 'tv-active-focus' : ''}`}
             >
               <Tv className="w-4 h-4" />
               <span>Canais & Filmes</span>
             </button>
             <button
-              onClick={() => setActiveTab('adult')}
+              ref={el => tabRefs.current[1] = el}
+              onClick={() => {
+                setActiveTab('adult');
+                setFocusSection('tabs');
+                setFocusedTabIndex(1);
+              }}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-xs transition-all focus:outline-none ${
                 activeTab === 'adult'
                   ? 'bg-rose-600 text-white shadow shadow-rose-600/25'
                   : 'text-stone-400 hover:text-rose-450'
-              }`}
+              } ${focusSection === 'tabs' && focusedTabIndex === 1 ? 'tv-active-focus' : ''}`}
             >
               <Flame className="w-4 h-4" />
               <span>Conteúdo Adulto 18+</span>
@@ -237,8 +353,11 @@ export default function Dashboard() {
           </div>
 
           <button
+            ref={logoutRef}
             onClick={handleLogout}
-            className="flex items-center gap-2 hover:bg-stone-900 text-stone-400 hover:text-white p-2.5 rounded-xl border border-transparent hover:border-stone-850 transition-all focus:outline-none"
+            className={`flex items-center gap-2 hover:bg-stone-900 text-stone-400 hover:text-white p-2.5 rounded-xl border border-transparent hover:border-stone-850 transition-all focus:outline-none ${
+              focusSection === 'tabs' && focusedTabIndex === 2 ? 'tv-active-focus' : ''
+            }`}
             title="Sair da plataforma"
           >
             <LogOut className="w-5 h-5" />
@@ -270,58 +389,35 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* XVideos Search Bar for Adult Tab */}
+        {/* XVideos Categories for Adult Tab */}
         {!loading && !error && activeTab === 'adult' && (
-          <div className="mb-8 max-w-lg mx-auto flex flex-col gap-3">
-            <div className="bg-stone-900/60 p-2 rounded-2xl border border-stone-850 flex items-center gap-2">
-              <Search className="w-5 h-5 text-stone-500 ml-2" />
-              <input
-                type="text"
-                placeholder="Buscar no XVideos (ex: massagem)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSearch();
-                }}
-                className="bg-transparent border-0 flex-1 px-2 py-2 text-stone-100 placeholder-stone-600 focus:outline-none text-sm"
-              />
-              <button
-                onClick={handleSearch}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-all focus:outline-none"
-              >
-                Buscar
-              </button>
-            </div>
-            
-            {/* Category pills for quick tags */}
-            <div className="flex flex-wrap gap-2 justify-center">
-              {[
-                { label: '🔥 Geral', tag: '' },
-                { label: '💆 Massagem', tag: 'massagem' },
-                { label: '🇧🇷 Amador', tag: 'amador nacional' },
-                { label: '👨‍❤️‍👨 Gay', tag: 'gay' },
-                { label: '👩‍❤️‍👩 Lésbicas', tag: 'lesbicas' },
-                { label: '👥 Grupo', tag: 'sexo em grupo suruba' },
-                { label: '💑 Casal', tag: 'casal' },
-                { label: '💋 Oral', tag: 'boquete' },
-                { label: '🍑 Anal', tag: 'anal' },
-                { label: '👾 Hentai', tag: 'hentai' }
-              ].map(pill => (
-                <button
-                  key={pill.label}
-                  onClick={() => {
-                    setSearchQuery(pill.tag);
-                    fetchXVideos(pill.tag);
-                  }}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    searchQuery === pill.tag
-                      ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/10'
-                      : 'bg-stone-900/40 text-stone-400 border-stone-800 hover:text-white hover:border-stone-700'
-                  }`}
-                >
-                  {pill.label}
-                </button>
-              ))}
+          <div className="mb-10 w-full flex flex-col gap-4">
+            <span className="text-xs font-bold text-rose-500 uppercase tracking-widest text-center">Navegar por Categorias</span>
+            <div className="flex flex-wrap gap-2.5 justify-center max-w-4xl mx-auto">
+              {ADULT_CATEGORIES.map((pill, idx) => {
+                const isSelected = searchQuery === pill.tag;
+                const isFocused = focusSection === 'categories' && focusedCategoryIndex === idx;
+
+                return (
+                  <button
+                    key={pill.label}
+                    ref={el => categoryRefs.current[idx] = el}
+                    onClick={() => {
+                      setSearchQuery(pill.tag);
+                      fetchXVideos(pill.tag);
+                      setFocusSection('categories');
+                      setFocusedCategoryIndex(idx);
+                    }}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
+                      isSelected
+                        ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-600/25'
+                        : 'bg-stone-900/60 text-stone-400 border-stone-850 hover:text-white hover:border-stone-750'
+                    } ${isFocused ? 'tv-active-focus' : ''}`}
+                  >
+                    {pill.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -339,13 +435,17 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {categories[categoryKey].map(channel => {
                 const absoluteIndex = visibleItems.findIndex(c => c.id === channel.id);
-                const isFocused = absoluteIndex === focusedIndex;
+                const isFocused = focusSection === 'channels' && absoluteIndex === focusedChannelIndex;
 
                 return (
                   <div
                     key={channel.id}
                     ref={el => cardRefs.current[absoluteIndex] = el}
-                    onClick={() => setActiveChannel(channel)}
+                    onClick={() => {
+                      setActiveChannel(channel);
+                      setFocusSection('channels');
+                      setFocusedChannelIndex(absoluteIndex);
+                    }}
                     className={`group cursor-pointer bg-stone-900 border border-stone-850 rounded-2xl overflow-hidden hover:scale-102 transition-all duration-200 ${
                       isFocused ? 'tv-active-focus' : ''
                     }`}
@@ -404,13 +504,17 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {dynamicVideos.map(video => {
                   const absoluteIndex = visibleItems.findIndex(c => c.id === video.id);
-                  const isFocused = absoluteIndex === focusedIndex;
+                  const isFocused = focusSection === 'channels' && absoluteIndex === focusedChannelIndex;
 
                   return (
                     <div
                       key={video.id}
                       ref={el => cardRefs.current[absoluteIndex] = el}
-                      onClick={() => setActiveChannel(video)}
+                      onClick={() => {
+                        setActiveChannel(video);
+                        setFocusSection('channels');
+                        setFocusedChannelIndex(absoluteIndex);
+                      }}
                       className={`group cursor-pointer bg-stone-900 border border-stone-850 rounded-2xl overflow-hidden hover:scale-102 transition-all duration-200 ${
                         isFocused ? 'tv-active-focus' : ''
                       }`}
@@ -464,3 +568,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

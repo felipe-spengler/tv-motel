@@ -155,8 +155,28 @@ export default function Player({ title, sourceType, onBack, resolveStreamUrl }: 
         {isYouTube ? (
           <button
             onClick={() => {
-              const watchUrl = streamUrl?.replace('/embed/', '/watch?v=')?.split('?')[0] || '';
-              window.open(watchUrl, '_blank');
+              let watchUrl = '';
+              if (streamUrl) {
+                const embedIdMatch = streamUrl.match(/\/embed\/([^/?#]+)/);
+                if (embedIdMatch && embedIdMatch[1] && embedIdMatch[1] !== 'embed') {
+                  watchUrl = `https://www.youtube.com/watch?v=${embedIdMatch[1]}`;
+                } else {
+                  try {
+                    const urlObj = new URL(streamUrl);
+                    const list = urlObj.searchParams.get('list');
+                    if (list) {
+                      watchUrl = `https://www.youtube.com/@${list}/live`;
+                    } else {
+                      watchUrl = streamUrl;
+                    }
+                  } catch (e) {
+                    watchUrl = streamUrl;
+                  }
+                }
+              }
+              if (watchUrl) {
+                window.open(watchUrl, '_blank');
+              }
             }}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all focus:outline-none font-bold text-xs shadow-lg shadow-red-600/10 active:scale-95"
           >
