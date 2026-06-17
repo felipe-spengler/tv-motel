@@ -1,0 +1,9 @@
+{
+  "appId": "com.pornotv.app",
+  "appName": "PornoTv",
+  "webDir": "dist",
+  "server": {
+    "url": "https://tv.motelinteligente.com",
+    "cleartext": true
+  }
+}

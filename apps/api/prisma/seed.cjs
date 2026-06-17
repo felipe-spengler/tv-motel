@@ -76,7 +76,7 @@ async function main() {
   // 4. Criar Canais Padrão no Catálogo
   const channels = [
     {
-      title: 'Globo Ao Vivo',
+      title: 'GE Ao Vivo',
       category: 'NEWS',
       sourceType: 'M3U8_FAST',
       externalId: 'https://amg00716-globo-amg00716c1-tcl-br-9495.playouts.now.amagi.tv/playlist.m3u8',
@@ -130,14 +130,6 @@ async function main() {
       externalId: 'https://stmv1.srvif.com/tvserie/tvserie/playlist.m3u8',
       thumbnailUrl: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=400',
       orderPriority: 4,
-    },
-    {
-      title: 'CazéTV Ao Vivo',
-      category: 'PODCASTS',
-      sourceType: 'IFRAME_CAM_AFFILIATE',
-      externalId: 'https://player.twitch.tv/?channel=cazetv&parent=tv.motelinteligente.com&parent=localhost&autoplay=true',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=400',
-      orderPriority: 3,
     },
     {
       title: 'Canal GOAT Ao Vivo',
