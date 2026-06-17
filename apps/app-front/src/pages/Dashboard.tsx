@@ -300,9 +300,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-stone-950/80 backdrop-blur-md border-b border-stone-900 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <Tv className="w-6 h-6 text-white" />
-          </div>
+          <img src="/logo.png" alt="PornoTv Logo" className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-primary/20 border border-stone-900" />
           <span className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-stone-400">
             PornoTv
           </span>

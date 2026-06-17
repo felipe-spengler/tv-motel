@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../utils/api.js';
-import { Tv, ShieldAlert, Check, MessageSquare } from 'lucide-react';
+import { ShieldAlert, Check, MessageSquare } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -147,9 +147,7 @@ export default function Login() {
       {/* Header Landing */}
       <header className="w-full max-w-7xl mx-auto flex items-center justify-between mb-10 md:mb-16 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-tr from-primary to-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/25">
-            <Tv className="w-7 h-7 text-white" />
-          </div>
+          <img src="/logo.png" alt="PornoTv Logo" className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-primary/25 border border-stone-800" />
           <div>
             <span className="text-2xl font-black tracking-tight text-white">PornoTv</span>
             <p className="text-stone-500 text-xs font-semibold">ENTRETENIMENTO INTELIGENTE</p>
